@@ -36,6 +36,7 @@ import {
   Zap,
 } from 'lucide-react'
 import './App.css'
+import AuthGate from './components/AuthGate'
 
 type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game'
 type ThemePreference = 'system' | 'light' | 'dark'
@@ -239,7 +240,8 @@ function App() {
   ]
 
   return (
-    <div className="app-shell" data-theme={currentTheme} dir="rtl">
+    <AuthGate theme={currentTheme}>
+      <div className="app-shell" data-theme={currentTheme} dir="rtl">
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
@@ -313,8 +315,9 @@ function App() {
         </div>
       )}
 
-      {toast && <div className="toast"><Check size={18} /><span>{toast}</span><button onClick={() => setToast('')}><X size={16} /></button></div>}
-    </div>
+        {toast && <div className="toast"><Check size={18} /><span>{toast}</span><button onClick={() => setToast('')}><X size={16} /></button></div>}
+      </div>
+    </AuthGate>
   )
 }
 
