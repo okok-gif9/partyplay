@@ -108,6 +108,8 @@ export async function createOnlineRoom(input: {
   capacity: number
 }) {
   const client = requireClient()
+  const { error: profileError } = await client.rpc('partyplay_ensure_profile', { p_display_name: null })
+  throwIfError(profileError)
   const { data, error } = await client.rpc('partyplay_create_room', {
     p_game_type: input.gameType,
     p_name: input.name,
