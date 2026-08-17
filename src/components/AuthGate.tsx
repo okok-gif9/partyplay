@@ -59,6 +59,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
     }
     if (!supabase) return
 
+    if (displayName.trim()) localStorage.setItem('partyplay-display-name', displayName.trim())
     setBusy(true)
     setError('')
     setNotice('')

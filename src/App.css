@@ -266,3 +266,71 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 @media (max-width: 900px) { .social-hero, .social-columns, .group-management-layout, .account-layout { grid-template-columns: 1fr; }.group-create-bar { align-items: stretch; flex-direction: column; }.group-selector { max-height: 240px; overflow: auto; }.group-settings-fields { grid-template-columns: 1fr 1fr; }.group-settings-fields .secondary-button { grid-column: 1 / -1; }.member-add-box { grid-template-columns: 1fr; }.account-identity-card { min-height: 180px; }.badge-picker { grid-template-columns: repeat(8, minmax(0,1fr)); } }
 @media (max-width: 620px) { .social-hero { padding: 1rem; }.found-profile { align-items: stretch; flex-direction: column; }.social-search-box { flex-wrap: wrap; }.social-search-box input { min-width: 130px; }.social-search-box .secondary-button { flex: 1; }.social-columns { gap: 12px; }.inline-creation { align-items: stretch; flex-direction: column; }.group-create-bar { padding: 1rem; }.group-settings-fields { grid-template-columns: 1fr; }.group-settings-fields .secondary-button { grid-column: auto; }.badge-picker { grid-template-columns: repeat(4, minmax(0,1fr)); }.avatar-picker { grid-template-columns: repeat(4, minmax(0,1fr)); }.presence-options { grid-template-columns: repeat(2, 1fr); }.truth-card-footer { flex-wrap: wrap; }.truth-card-footer .secondary-button { width: 100%; }.group-detail-live { padding: 1rem; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* Online Truth or Dare */
+.truth-setup-page { max-width: 900px; }
+.truth-setup-panel { display: grid; grid-template-columns: auto 1fr; gap: 1rem 1.2rem; align-items: center; padding: 1.8rem; }
+.truth-setup-panel h2, .truth-setup-panel p { margin: .25rem 0; }
+.truth-setup-panel p, .truth-setup-panel small { color: var(--muted); line-height: 1.75; }
+.truth-setup-panel small { grid-column: 1 / -1; display: flex; align-items: center; gap: .4rem; }
+.truth-setup-icon { width: 70px; height: 70px; display: grid; place-items: center; color: var(--gold); border-radius: 24px; background: color-mix(in srgb, var(--gold) 17%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 34%, transparent); }
+.truth-capacity-picker { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .65rem; padding-top: .3rem; }
+.truth-capacity-picker button { min-width: 76px; padding: .72rem .9rem; border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line)); border-radius: 14px; color: var(--ink); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); transition: transform .16s var(--ease-out, ease-out), background .16s var(--ease-out, ease-out), border-color .16s var(--ease-out, ease-out); }
+.truth-capacity-picker button:hover:not(:disabled) { transform: translateY(-2px); background: color-mix(in srgb, var(--gold) 21%, var(--surface)); border-color: var(--gold); }
+.truth-capacity-picker button:active:not(:disabled) { transform: scale(.97); }
+.truth-seat-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); }
+.truth-mode-panel { margin-top: 1rem; }
+.truth-mode-panel .primary-button { background: linear-gradient(135deg, var(--gold), var(--coral)); }
+.online-truth-stage { margin-top: 1.1rem; display: grid; gap: 1rem; }
+.truth-round-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.4rem; border-radius: 22px; color: var(--ink); background: linear-gradient(118deg, color-mix(in srgb, var(--gold) 16%, var(--surface)), color-mix(in srgb, var(--violet) 12%, var(--surface))); border: 1px solid color-mix(in srgb, var(--gold) 27%, var(--line)); }
+.truth-round-head h2, .truth-round-head p { margin: .2rem 0; }
+.truth-round-head p { color: var(--muted); }
+.truth-round-status { display: grid; justify-items: end; gap: .35rem; min-width: 128px; color: var(--muted); font-size: .8rem; }
+.truth-round-status b { color: var(--ink); }
+.truth-round-status span:last-child { display: flex; align-items: center; gap: .28rem; }
+.truth-player-strip { display: flex; overflow-x: auto; gap: .7rem; padding: .25rem .1rem .6rem; scrollbar-width: thin; }
+.truth-player-token { position: relative; min-width: 138px; display: flex; align-items: center; gap: .55rem; padding: .65rem; border: 1px solid var(--line); border-radius: 17px; background: color-mix(in srgb, var(--surface) 91%, transparent); opacity: .83; transition: transform .2s var(--ease-out, ease-out), opacity .2s var(--ease-out, ease-out), border-color .2s var(--ease-out, ease-out), box-shadow .2s var(--ease-out, ease-out); }
+.truth-player-token > div { min-width: 0; display: grid; gap: .08rem; }
+.truth-player-token b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: .84rem; }
+.truth-player-token small { color: var(--muted); font-size: .7rem; }
+.truth-player-token > svg { margin-right: auto; color: var(--gold); }
+.truth-player-token.turn-picked { opacity: 1; transform: translateY(-3px); border-color: var(--gold); box-shadow: 0 12px 26px color-mix(in srgb, var(--gold) 20%, transparent); }
+.truth-online-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(290px, .56fr); gap: 1rem; align-items: start; }
+.truth-game-board { min-height: 430px; display: grid; place-items: center; align-content: center; gap: 1rem; padding: 2.1rem; text-align: center; overflow: hidden; }
+.truth-choice-stage, .truth-revealed-stage, .truth-finished-stage { max-width: 680px; display: grid; justify-items: center; gap: .9rem; }
+.truth-choice-stage h3, .truth-choice-stage p, .truth-revealed-stage h3, .truth-revealed-stage p, .truth-finished-stage h3, .truth-finished-stage p { margin: 0; }
+.truth-choice-stage p, .truth-revealed-stage p, .truth-finished-stage p { max-width: 520px; color: var(--muted); line-height: 1.85; }
+.truth-choice-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
+.truth-choice-actions button { min-width: 136px; }
+.truth-lottery { display: flex; flex-wrap: wrap; justify-content: center; gap: .45rem; max-width: 380px; padding: .75rem; }
+.truth-lottery > span { display: grid; padding: .25rem; border-radius: 50%; animation: truth-lottery-hop .68s var(--ease-out, ease-out) both; animation-delay: var(--lottery-delay); }
+.truth-lottery > span.lottery-winner { background: color-mix(in srgb, var(--gold) 28%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 9%, transparent); }
+.waiting-next-turn { color: var(--muted); font-size: .87rem; }
+.truth-finish-button { margin-top: -.25rem; color: var(--coral); }
+.truth-chat-panel { min-height: 430px; display: grid; grid-template-rows: auto minmax(180px, 1fr) auto; padding: 0; overflow: hidden; }
+.truth-chat-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: 1.1rem 1.1rem .85rem; border-bottom: 1px solid var(--line); }
+.truth-chat-heading h3 { margin: .18rem 0 0; font-size: 1rem; }
+.chat-quota { flex: 0 0 auto; padding: .38rem .55rem; border-radius: 999px; color: color-mix(in srgb, var(--lime) 70%, var(--ink)); background: color-mix(in srgb, var(--lime) 15%, transparent); font-size: .72rem; font-weight: 800; }
+.chat-quota.quota-spent { color: var(--muted); background: color-mix(in srgb, var(--muted) 13%, transparent); }
+.truth-message-list { max-height: 470px; min-height: 240px; display: grid; align-content: start; gap: .7rem; overflow-y: auto; padding: .9rem 1rem; }
+.truth-message { display: grid; gap: .35rem; padding: .7rem; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: 16px; background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.truth-message.my-message { border-color: color-mix(in srgb, var(--violet) 42%, var(--line)); background: color-mix(in srgb, var(--violet) 9%, var(--surface-2)); }
+.truth-message-author { display: flex; align-items: center; gap: .42rem; color: var(--ink); font-size: .78rem; }
+.truth-message-author small { margin-right: auto; color: var(--muted); font-size: .65rem; }
+.truth-message p { margin: 0; color: var(--ink); font-size: .86rem; line-height: 1.7; overflow-wrap: anywhere; }
+.message-reactions { display: flex; flex-wrap: wrap; gap: .28rem; }
+.message-reactions button { display: inline-flex; align-items: center; gap: .2rem; min-width: 31px; padding: .24rem .36rem; border: 1px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, transparent); transition: transform .15s var(--ease-out, ease-out), border-color .15s var(--ease-out, ease-out), background .15s var(--ease-out, ease-out); }
+.message-reactions button:hover:not(:disabled), .message-reactions button.reaction-active { border-color: color-mix(in srgb, var(--gold) 60%, transparent); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.message-reactions button:active:not(:disabled) { transform: scale(.94); }
+.message-reactions small { color: var(--muted); font-size: .65rem; }
+.truth-chat-empty { min-height: 180px; display: grid; place-items: center; align-content: center; gap: .55rem; color: var(--muted); text-align: center; }
+.truth-chat-empty p { margin: 0; }
+.truth-chat-compose { display: grid; grid-template-columns: 1fr auto; gap: .55rem; padding: .8rem; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 90%, transparent); }
+.truth-chat-compose textarea { min-height: 43px; max-height: 90px; resize: vertical; padding: .65rem .75rem; border: 1px solid var(--line); border-radius: 13px; color: var(--ink); background: var(--surface-2); font: inherit; line-height: 1.55; outline: none; }
+.truth-chat-compose textarea:focus { border-color: var(--violet); box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 15%, transparent); }
+.truth-chat-compose textarea:disabled { opacity: .65; cursor: not-allowed; }
+.truth-chat-compose .primary-button { min-width: 44px; padding: .55rem; }
+@keyframes truth-lottery-hop { 0% { transform: translateY(6px) scale(.94); opacity: .35; } 62% { transform: translateY(-5px) scale(1.04); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@media (max-width: 820px) { .truth-online-layout { grid-template-columns: 1fr; } .truth-game-board { min-height: 360px; padding: 1.4rem; } .truth-chat-panel { min-height: 380px; } .truth-round-head { align-items: flex-start; flex-direction: column; } .truth-round-status { justify-items: start; } }
+@media (max-width: 560px) { .truth-setup-panel { grid-template-columns: 1fr; } .truth-setup-icon { width: 58px; height: 58px; } .truth-round-head { padding: 1rem; } .truth-game-board { padding: 1.15rem; } .truth-choice-actions { width: 100%; } .truth-choice-actions button { flex: 1; min-width: 0; } .truth-seat-grid { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) { .truth-lottery > span { animation: none; } .truth-player-token { transition: opacity .15s linear; } }

@@ -1,5 +1,5 @@
 import { LoaderCircle, RotateCcw, Trophy, Wifi } from 'lucide-react'
-import type { LoadedRoom, PartyPlaySession, TicTacToeMark } from '../lib/partyplay'
+import type { LoadedRoom, PartyPlaySession, TicTacToeMark, TicTacToeState } from '../lib/partyplay'
 
 type OnlineTicTacToeProps = {
   room: LoadedRoom
@@ -17,7 +17,7 @@ const playerLabel = (name: string) => name.trim().charAt(0) || 'پ'
 const playerTone = (mark: TicTacToeMark) => mark === 'X' ? 'pink' : 'cyan'
 
 export default function OnlineTicTacToe({ room, session, currentUserId, pending, onMove, onRematch }: OnlineTicTacToeProps) {
-  const state = session.state
+  const state = session.state as TicTacToeState
   const board = Array.isArray(state.board) ? state.board : Array(9).fill(null)
   const xUserId = state.marks?.X
   const oUserId = state.marks?.O

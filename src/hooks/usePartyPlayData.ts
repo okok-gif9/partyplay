@@ -71,7 +71,9 @@ export function usePartyPlayData() {
       const { data: authData } = await supabase.auth.getUser()
       if (!authData.user) { setProfile(null); setGroups([]); setFriends([]); setRequests([]); return null }
 
-      const rawProfile = await rpc<unknown>('partyplay_ensure_profile', { p_display_name: displayName || null })
+      const authDisplayName = typeof authData.user.user_metadata?.display_name === 'string' ? authData.user.user_metadata.display_name.trim() : ''
+      const rememberedDisplayName = localStorage.getItem('partyplay-display-name')?.trim() || ''
+      const rawProfile = await rpc<unknown>('partyplay_ensure_profile', { p_display_name: displayName || authDisplayName || rememberedDisplayName || null })
       const nextProfile = normalizeProfile(rawProfile)
       setProfile(nextProfile)
 
@@ -133,6 +135,7 @@ export function usePartyPlayData() {
     })
     const next = normalizeProfile(data)
     setProfile(next)
+    localStorage.setItem('partyplay-display-name', next.displayName)
     await refresh()
     return next
   }, [refresh])
