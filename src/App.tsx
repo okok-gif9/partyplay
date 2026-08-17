@@ -37,6 +37,10 @@ import {
 } from 'lucide-react'
 import './App.css'
 import AuthGate from './components/AuthGate'
+import OnlineTicTacToe from './components/OnlineTicTacToe'
+import OnlineTicTacToeRoom from './components/OnlineTicTacToeRoom'
+import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
+import type { LoadedRoom } from './lib/partyplay'
 
 type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game'
 type ThemePreference = 'system' | 'light' | 'dark'
@@ -135,6 +139,15 @@ function App() {
   const [board, setBoard] = useState<(null | 'X' | 'O')[]>(Array(9).fill(null))
   const [turn, setTurn] = useState<'X' | 'O'>('X')
   const [gameMessage, setGameMessage] = useState('نوبت توئه؛ X رو روی یک خانه بذار.')
+  const {
+    room: onlineRoom,
+    currentUserId: onlineUserId,
+    pending: onlinePending,
+    createRoom: createOnlineRoom,
+    joinRoom: joinOnlineRoom,
+    start: startOnlineRoom,
+    move: makeOnlineMove,
+  } = useOnlineTicTacToe()
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-color-scheme: dark)')
@@ -189,21 +202,57 @@ function App() {
     if (winner === 'draw') setGameMessage('مساوی شد؛ هیچ خانهٔ خالی باقی نمونده.')
   }, [winner])
 
+  useEffect(() => {
+    const inviteCode = new URLSearchParams(window.location.search).get('room')
+    if (!inviteCode || onlineRoom) return
+    void joinOnlineRoom(inviteCode).then(() => {
+      setSelectedGame('tic-tac-toe')
+      setPage('room')
+      showToast('وارد لابی دوز شدی.')
+    }).catch(showOnlineError)
+  }, [joinOnlineRoom, onlineRoom])
+
   const showToast = (message: string) => setToast(message)
+
+  const showOnlineError = (error: unknown) => {
+    showToast(error instanceof Error ? error.message : 'ارتباط با بازی کامل نشد.')
+  }
 
   const startQuickGame = (game: GameId) => {
     setSelectedGame(game)
+    if (game === 'tic-tac-toe') {
+      void createOnlineRoom('چالش دوز').then(() => {
+        setPage('room')
+        showToast('لابی خصوصی دوز آماده شد؛ لینک دعوت را برای حریفت بفرست.')
+      }).catch(showOnlineError)
+      return
+    }
     setPage('room')
     showToast('یک لابی سریع برای تو آماده شد.')
   }
 
   const createRoom = () => {
+    if (selectedGame === 'tic-tac-toe') {
+      void createOnlineRoom(roomName).then(() => {
+        setCreateOpen(false)
+        setPage('room')
+        showToast('اتاق دوز ساخته شد؛ فقط یک بازیکن دیگر لازم است.')
+      }).catch(showOnlineError)
+      return
+    }
     setCreateOpen(false)
     setPage('room')
     showToast(`اتاق «${roomName || 'بدون نام'}» ساخته شد.`)
   }
 
   const startGame = () => {
+    if (selectedGame === 'tic-tac-toe' && onlineRoom) {
+      void startOnlineRoom().then(() => {
+        setPage('game')
+        showToast('دوز هم‌زمان شروع شد. خوش بگذره!')
+      }).catch(showOnlineError)
+      return
+    }
     setPage('game')
     if (selectedGame === 'tic-tac-toe') {
       setBoard(Array(9).fill(null))
@@ -214,6 +263,10 @@ function App() {
   }
 
   const makeMove = (index: number) => {
+    if (selectedGame === 'tic-tac-toe' && onlineRoom?.session) {
+      void makeOnlineMove(index).catch(showOnlineError)
+      return
+    }
     if (selectedGame !== 'tic-tac-toe' || board[index] || turn !== 'X' || winner) return
     const next = [...board]
     next[index] = 'X'
@@ -227,8 +280,9 @@ function App() {
     if (page === 'friends') return <FriendsPage onBack={() => setPage('home')} onChallenge={(name) => { setSelectedGame('tic-tac-toe'); setPage('room'); showToast(`چالش برای ${name} آماده شد.`) }} />
     if (page === 'groups') return <GroupsPage onBack={() => setPage('home')} onChallenge={(name) => { setSelectedGame('mafia'); setPage('room'); showToast(`دعوت گروه ${name} آماده شد.`) }} />
     if (page === 'profile') return <ProfilePage theme={themePreference} onTheme={setThemePreference} onBack={() => setPage('home')} />
+    if (page === 'room' && selectedGame === 'tic-tac-toe' && onlineRoom) return <OnlineTicTacToeRoom room={onlineRoom} currentUserId={onlineUserId} pending={onlinePending} onBack={() => setPage('home')} onStart={startGame} onInvite={() => { const inviteLink = `${window.location.origin}${window.location.pathname}?room=${onlineRoom.room.invite_code}`; if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(inviteLink); showToast('لینک دعوت واقعی در کلیپ‌بورد کپی شد.') }} />
     if (page === 'room') return <RoomPage game={activeGame} capacity={capacity} hasPassword={hasPassword} onBack={() => setPage('home')} onStart={startGame} onInvite={() => showToast('لینک دعوت در کلیپ‌بورد کپی شد.')} />
-    if (page === 'game') return <GamePage game={activeGame} board={board} message={gameMessage} winner={winner} onMove={makeMove} onRestart={() => { setBoard(Array(9).fill(null)); setTurn('X'); setGameMessage('نوبت توئه؛ X رو روی یک خانه بذار.') }} onBack={() => setPage('room')} onNotify={showToast} />
+    if (page === 'game') return <GamePage game={activeGame} board={board} message={gameMessage} winner={winner} onMove={makeMove} onRestart={() => { if (selectedGame === 'tic-tac-toe' && onlineRoom) { void startOnlineRoom().catch(showOnlineError); return }; setBoard(Array(9).fill(null)); setTurn('X'); setGameMessage('نوبت توئه؛ X رو روی یک خانه بذار.') }} onBack={() => setPage('room')} onNotify={showToast} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} />
     return <HomePage onSelectGame={startQuickGame} onCreate={() => setCreateOpen(true)} onFriends={() => setPage('friends')} onGroups={() => setPage('groups')} />
   }
 
@@ -376,9 +430,10 @@ function RoomPage({ game, capacity, hasPassword, onBack, onStart, onInvite }: { 
   return <section className="room-page"><button className="back-link" onClick={onBack}><ArrowRightIcon/>بازگشت به خانه</button><div className={`room-hero accent-${game.accent}`}><div className="room-game-symbol"><Icon size={29}/></div><div><span className="eyebrow">لابی خصوصی</span><h1>دورهمی امشب <span className="room-code">K8M4</span></h1><p>{game.title} · {capacity} نفر ظرفیت · {hasPassword ? 'رمزدار' : 'بدون رمز'}</p></div><div className="room-hero-actions"><button className="secondary-button" onClick={onInvite}><Copy size={17}/>کپی لینک</button><button className="icon-button soft-button"><MoreHorizontal size={19}/></button></div></div><div className="room-layout"><section className="panel lobby-panel"><div className="panel-heading"><div><span className="eyebrow">بازیکن‌ها</span><h2>منتظر جمع‌شدنیم</h2></div><span className="ready-counter"><span/> {occupied.length} از {capacity}</span></div><div className="seat-grid">{seats.slice(0, Math.min(seats.length, 10)).map((seat) => { const player = occupied[seat]; return <div className={`seat ${player ? 'seat-filled' : ''}`} key={seat}>{player ? <><div className="seat-avatar">{avatar(player.label, player.tone)}{player.host && <Crown size={14}/>}</div><strong>{player.name}</strong><small>{seat === 2 ? 'آماده' : player.host ? 'میزبان' : 'در لابی'}</small></> : <><span className="empty-seat"><UserPlus size={20}/></span><strong>جای خالی</strong><small>دعوت کن یا ربات بیار</small></>}</div>})}</div><div className="lobby-footer"><div><Bot size={18}/><span>{emptySlots ? `${emptySlots} جای خالی رو با ربات پر کن` : 'اتاق کامل شد؛ آمادهٔ شروعید'}</span></div>{emptySlots > 0 && <button className="text-button">افزودن ربات <ArrowLeft size={16}/></button>}</div></section><aside className="room-side"><section className="panel game-rules"><div className="panel-heading"><div><span className="eyebrow">قوانین این دور</span><h2>{game.title}</h2></div><CircleHelp size={19}/></div><ul><li><Users size={16}/>{game.players}</li><li><Clock3 size={16}/>{game.duration}</li><li><Zap size={16}>{}</Zap>گردانندهٔ خودکار</li></ul><div className="start-note"><Sparkles size={17}/><span>همه آماده‌ان؛ می‌تونی بازی رو شروع کنی.</span></div><button className="primary-button full-button large-button" onClick={onStart}><Play size={18} fill="currentColor"/>شروع بازی</button></section><section className="panel lobby-chat"><div className="chat-heading"><strong>گفت‌وگوی لابی</strong><span><span/> فعال</span></div><div className="chat-line">{avatar('ر','rose')}<p><b>رها</b>من آماده‌ام!</p></div><div className="chat-line own"><p><b>تو</b>بریم شروع کنیم؟</p>{avatar('پ','pink')}</div><div className="chat-input"><input placeholder="یه پیام بنویس…"/><button><Send size={17}/></button></div></section></aside></div></section>
 }
 
-function GamePage({ game, board, message, winner, onMove, onRestart, onBack, onNotify }: { game: Game; board: (null|'X'|'O')[]; message: string; winner: string | null; onMove: (index: number) => void; onRestart: () => void; onBack: () => void; onNotify: (message: string) => void }) {
+function GamePage({ game, board, message, winner, onMove, onRestart, onBack, onNotify, onlineRoom, onlineUserId, onlinePending }: { game: Game; board: (null|'X'|'O')[]; message: string; winner: string | null; onMove: (index: number) => void; onRestart: () => void; onBack: () => void; onNotify: (message: string) => void; onlineRoom: LoadedRoom | null; onlineUserId: string | null; onlinePending: boolean }) {
   const Icon = game.icon
-  return <section className={`game-page accent-${game.accent}`}><div className="game-topline"><button className="back-link" onClick={onBack}><ArrowRightIcon/>لابی</button><div className="live-status"><span className="pulse-dot"/> اتصال پایدار</div><button className="exit-game"><X size={16}/>خروج از بازی</button></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Icon size={21}/></span><div><strong>{game.title}</strong><span>اتاق دورهمی امشب</span></div></div><div className="game-timer"><Clock3 size={18}/><b>۰۰:۱۸</b><span>زمان نوبت</span></div></div>{game.id === 'tic-tac-toe' ? <TicTacToe board={board} message={message} winner={winner} onMove={onMove} onRestart={onRestart}/> : <GamePreview game={game} onRestart={onRestart} onNotify={onNotify} />}</section>
+  const hasOnlineTicTacToe = game.id === 'tic-tac-toe' && onlineRoom?.session && onlineUserId
+  return <section className={`game-page accent-${game.accent}`}><div className="game-topline"><button className="back-link" onClick={onBack}><ArrowRightIcon/>لابی</button><div className="live-status"><span className="pulse-dot"/> اتصال پایدار</div><button className="exit-game"><X size={16}/>خروج از بازی</button></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Icon size={21}/></span><div><strong>{game.title}</strong><span>{hasOnlineTicTacToe ? onlineRoom.room.name : 'اتاق دورهمی امشب'}</span></div></div><div className="game-timer"><Clock3 size={18}/><b>۰۰:۱۸</b><span>زمان نوبت</span></div></div>{hasOnlineTicTacToe ? <OnlineTicTacToe room={onlineRoom} session={onlineRoom.session!} currentUserId={onlineUserId} pending={onlinePending} onMove={onMove} onRematch={onRestart}/> : game.id === 'tic-tac-toe' ? <TicTacToe board={board} message={message} winner={winner} onMove={onMove} onRestart={onRestart}/> : <GamePreview game={game} onRestart={onRestart} onNotify={onNotify} />}</section>
 }
 
 function TicTacToe({ board, message, winner, onMove, onRestart }: { board: (null|'X'|'O')[]; message: string; winner: string | null; onMove: (index: number) => void; onRestart: () => void }) {

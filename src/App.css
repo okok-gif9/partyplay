@@ -150,3 +150,25 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 @media (max-width: 480px) { .auth-shell { padding: 14px; align-items: start; padding-top: 42px; }.auth-panel { padding: 27px 22px; border-radius: 23px; }.auth-brand { margin-bottom: 31px; }.auth-code { letter-spacing: .42em; } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 .auth-link-hint { display: flex; align-items: center; gap: 11px; margin-top: 9px; padding: 16px; border: 1px solid color-mix(in srgb, var(--cyan) 24%, var(--line)); border-radius: 14px; color: var(--cyan); background: var(--cyan-soft); }.auth-link-hint > div { display: flex; flex-direction: column; gap: 3px; }.auth-link-hint strong { color: var(--text); font-size: 12px; }.auth-link-hint span { color: var(--muted); font-size: 10px; line-height: 1.7; }
+
+/* Online tic-tac-toe */
+.online-seat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.online-room-page .room-hero { --accent: var(--cyan); --accent-soft: var(--cyan-soft); }
+.invite-url { direction: ltr; display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 16px; overflow: hidden; border: 1px dashed color-mix(in srgb, var(--cyan) 38%, var(--line)); border-radius: 11px; color: var(--cyan); background: color-mix(in srgb, var(--cyan-soft) 54%, transparent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+.invite-url span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tic-cell:disabled { cursor: not-allowed; }
+.tic-cell:disabled:not(.mark-X):not(.mark-O) { opacity: .7; }
+.tic-cell:disabled.mark-X, .tic-cell:disabled.mark-O { cursor: default; }
+.turn-badge.mark-X { color: var(--pink); background: var(--pink-soft); }
+.turn-badge.mark-O { color: var(--cyan); background: var(--cyan-soft); }
+.online-tic-layout .board-meta svg { vertical-align: -2px; margin-left: 3px; }
+.online-tic-layout .player-card { min-height: 122px; }
+.online-tic-layout .player-card small { display: inline-flex; align-items: center; }
+.spin { animation: online-spin .85s linear infinite; }
+@keyframes online-spin { to { transform: rotate(360deg); } }
+@media (max-width: 680px) {
+  .online-seat-grid { grid-template-columns: 1fr; }
+  .online-room-page .room-hero { align-items: flex-start; }
+  .online-room-page .room-hero-actions { margin-right: 0; margin-top: 4px; }
+  .online-tic-layout .player-card { min-height: auto; }
+}
