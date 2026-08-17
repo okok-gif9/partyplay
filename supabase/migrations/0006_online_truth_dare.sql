@@ -34,6 +34,14 @@ for select to authenticated using (exists (
 -- Chat quota must be enforced by the locked RPC transaction, not bypassable by direct inserts.
 drop policy if exists "pp_room_messages_send_as_self" on public.pp_room_messages;
 
+-- Use an explicit outer-table reference so room membership is checked against the message's own room.
+drop policy if exists "pp_room_messages_visible_to_room_members" on public.pp_room_messages;
+create policy "pp_room_messages_visible_to_room_members" on public.pp_room_messages
+for select to authenticated using (exists (
+  select 1 from public.pp_room_members membership
+  where membership.room_id = pp_room_messages.room_id and membership.user_id = auth.uid()
+));
+
 create or replace function public.partyplay_session_payload(p_session public.pp_game_sessions)
 returns jsonb
 language sql
