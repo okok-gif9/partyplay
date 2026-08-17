@@ -113,7 +113,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
                   className="text-field"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="مثلاً پارسا"
+                  placeholder="مثلاً کیان"
                   maxLength={40}
                   autoComplete="name"
                 />
