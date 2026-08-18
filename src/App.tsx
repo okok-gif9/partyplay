@@ -14,9 +14,12 @@ import OnlineTruthDare from './components/OnlineTruthDare'
 import OnlineTruthDareRoom, { TruthDareRoomSetup } from './components/OnlineTruthDareRoom'
 import OnlineMafiaRoom, { MafiaRoomSetup } from './components/OnlineMafiaRoom'
 import OnlineMafia from './components/OnlineMafia'
+import OnlineFullGameRoom, { FullGameSetup } from './components/OnlineFullGameRoom'
+import OnlineFullGame from './components/OnlineFullGame'
 import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
 import { useOnlineTruthDare } from './hooks/useOnlineTruthDare'
 import { useOnlineMafia } from './hooks/useOnlineMafia'
+import { useOnlineFullGame } from './hooks/useOnlineFullGame'
 import { usePartyPlayData } from './hooks/usePartyPlayData'
 import { sessionMedals, useSessionPlayProgress, type SessionMedal } from './hooks/useSessionPlayProgress'
 import { dareCards, shuffledIndexes, truthCards } from './data/truthDareCards'
@@ -25,13 +28,16 @@ import { ProfileSettingsPage, SocialFriendsPage, SocialGroupsPage } from './comp
 import SnakesBoard from './components/SnakesBoard'
 import OpenSourceArcade from './components/OpenSourceArcade'
 import { gameById, gameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
+import type { FullPartyPlayGameType } from './lib/partyplay'
 
-type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game'
+type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
 type ThemePreference = 'system' | 'light' | 'dark'
 type GameId = PartyGameId
 type PracticePhase = 'setup' | 'playing' | 'finished'
 
 const games: GameDefinition[] = gameCatalog
+const fullGameIdByRoomType: Record<FullPartyPlayGameType, PartyGameId> = { spyfall: 'spyfall', uno: 'uno', pictionary: 'pictionary', connect_four: 'connect-four', backgammon: 'backgammon', ludo: 'ludo', codenames: 'codenames', hokm: 'hokm', snakes_ladders: 'snakes' }
+const fullRoomTypeByGameId: Partial<Record<PartyGameId, FullPartyPlayGameType>> = Object.fromEntries(Object.entries(fullGameIdByRoomType).map(([roomType, gameId]) => [gameId, roomType as FullPartyPlayGameType]))
 
 const snakes = new Map([[17, 7], [54, 34], [62, 19], [87, 36], [93, 73]])
 const ladders = new Map([[4, 14], [9, 31], [20, 38], [28, 84], [40, 59], [51, 67], [71, 91]])
@@ -64,6 +70,7 @@ function App() {
   const { room: onlineRoom, currentUserId: onlineUserId, pending: onlinePending, createRoom: createOnlineRoom, joinRoom: joinOnlineRoom, start: startOnlineRoom, move: makeOnlineMove } = useOnlineTicTacToe()
   const truthDare = useOnlineTruthDare()
   const mafia = useOnlineMafia()
+  const fullGame = useOnlineFullGame()
   const sessionProgress = useSessionPlayProgress()
 
   const activeGame = gameById(selectedGame)
@@ -125,11 +132,20 @@ function App() {
         }).catch(showOnlineError)
         return
       }
+      const fullGameId = fullGameIdByRoomType[joined.room.game_type as FullPartyPlayGameType]
+      if (fullGameId) {
+        void fullGame.refreshRoom(joined.room.id).then(() => {
+          setSelectedGame(fullGameId)
+          setPage(joined.room.status === 'lobby' ? 'full-game-room' : 'full-game')
+          setToast(`وارد اتاق ${gameById(fullGameId).title} شدی.`)
+        }).catch(showOnlineError)
+        return
+      }
       setSelectedGame('tic-tac-toe')
       setPage('room')
       setToast('وارد لابی دوز شدی.')
     }).catch(showOnlineError)
-  }, [joinOnlineRoom, mafia.refreshRoom, mafia.room, onlineRoom, truthDare.room])
+  }, [fullGame.refreshRoom, fullGame.room, joinOnlineRoom, mafia.refreshRoom, mafia.room, onlineRoom, truthDare.room])
 
   const showOnlineError = (error: unknown) => setToast(error instanceof Error ? error.message : 'ارتباط با بازی کامل نشد. دوباره تلاش کن.')
   const resetPractice = (game: GameId) => {
@@ -149,9 +165,9 @@ function App() {
     setMafiaVote(null)
   }
   const startPractice = (game: GameId) => {
-    if (game !== 'mafia' && game !== 'tic-tac-toe' && game !== 'truth-dare' && game !== 'snakes') {
+    if (fullRoomTypeByGameId[game]) {
       setSelectedGame(game)
-      setPage('arcade-game')
+      setPage('full-game-setup')
       return
     }
     sessionProgress.markStarted(game)
@@ -173,6 +189,15 @@ function App() {
     void truthDare.createRoom(capacity).then(() => {
       setPage('truth-room')
       setToast('لابی جرئت‌وحقیقت آماده شد؛ لینک را برای جمع بفرست.')
+    }).catch(showOnlineError)
+  }
+  const createOnlineFullGame = (capacity: number) => {
+    const gameType = fullRoomTypeByGameId[selectedGame]
+    if (!gameType) return
+    sessionProgress.markStarted(selectedGame)
+    void fullGame.createRoom(gameType, `میز ${gameById(selectedGame).title}`, capacity).then(() => {
+      setPage('full-game-room')
+      setToast('لابی خصوصی آماده شد؛ لینک دعوت را برای دوستانت بفرست.')
     }).catch(showOnlineError)
   }
   const createOnlineMafia = (capacity: number) => {
@@ -218,6 +243,9 @@ function App() {
   const renderPage = () => {
     if (page === 'games') return <GamesPage onBack={() => setPage('home')} onPractice={startPractice} onOnlineTicTacToe={createOnlineTicTacToe} onOnlineTruthDare={() => setPage('truth-setup')} onOnlineMafia={() => setPage('mafia-setup')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
     if (page === 'arcade-game') return <OpenSourceArcade game={activeGame} onBack={() => setPage('games')}/>
+    if (page === 'full-game-setup') return <FullGameSetup game={activeGame} pending={fullGame.pending} error={fullGame.error} onCreate={createOnlineFullGame} onBack={() => setPage('games')}/>
+    if (page === 'full-game-room' && fullGame.room) return <OnlineFullGameRoom game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} error={fullGame.error} onStart={() => void fullGame.start().then(() => setPage('full-game')).catch(showOnlineError)} onBack={() => setPage('games')}/>
+    if (page === 'full-game' && fullGame.room?.session) return <OnlineFullGame game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} privateState={fullGame.privateState} onSavePrivate={(state) => void fullGame.savePrivateState(state)} onApply={(state, turnUserId, status, eventType) => void fullGame.applyState(state, turnUserId, status, eventType).then(() => sessionProgress.markAction(selectedGame)).catch(showOnlineError)} onBack={() => setPage('games')}/>
     if (page === 'friends') return <SocialFriendsPage onBack={() => setPage('home')} friends={friends} requests={requests} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} notify={setToast}/>
     if (page === 'groups') return <SocialGroupsPage onBack={() => setPage('home')} groups={groups} createGroup={createGroup} addGroupMember={addGroupMember} updateGroupIdentity={updateGroupIdentity} notify={setToast}/>
     if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void refresh().catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast}/>

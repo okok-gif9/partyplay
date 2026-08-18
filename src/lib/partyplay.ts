@@ -1,7 +1,8 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
-export type PartyPlayGameType = 'mafia' | 'tic_tac_toe' | 'truth_or_dare' | 'snakes_ladders'
+export type FullPartyPlayGameType = 'spyfall' | 'uno' | 'pictionary' | 'connect_four' | 'backgammon' | 'ludo' | 'codenames' | 'hokm' | 'snakes_ladders'
+export type PartyPlayGameType = 'mafia' | 'tic_tac_toe' | 'truth_or_dare' | 'snakes_ladders' | FullPartyPlayGameType
 export type TicTacToeMark = 'X' | 'O'
 export type TruthDareChoice = 'truth' | 'dare'
 export type TruthDareReaction = '😂' | '🔥' | '👏' | '😮'
@@ -58,11 +59,21 @@ export type MafiaState = {
   winner_faction: MafiaFaction | null
 }
 
+export type FullGameState = {
+  game: FullPartyPlayGameType
+  phase: string
+  player_ids: string[]
+  turn_index: number
+  round_no: number
+  narration: string
+  [key: string]: unknown
+}
+
 export type PartyPlaySession = {
   id: string
   room_id: string
   status: 'waiting' | 'running' | 'finished' | 'abandoned'
-  state: TicTacToeState | TruthDareState | MafiaState
+  state: TicTacToeState | TruthDareState | MafiaState | FullGameState
   turn_user_id: string | null
   winner_id: string | null
   round_no: number
@@ -120,6 +131,8 @@ const roomErrorMessage = (code: string) => {
     NIGHT_ACTION_NOT_ALLOWED: 'اکنون زمان اقدام نقش تو نیست.',
     PRIVATE_CHANNEL_FORBIDDEN: 'این گفت‌وگو فقط برای تیم مافیاست.',
     ROLE_NOT_READY: 'هنوز زمان تأیید کارت نقش نیست.',
+    INVALID_GAME: 'این بازی در دسترس نیست.',
+    INVALID_CAPACITY: 'این تعداد بازیکن برای بازی انتخاب‌شده معتبر نیست.',
     INVALID_MOVE: 'این حرکت معتبر نیست.',
     CELL_OCCUPIED: 'این خانه قبلاً پر شده است.',
     CONFLICT: 'وضعیت بازی تغییر کرده؛ صفحه به‌روز شد.',
@@ -146,7 +159,7 @@ const requireClient = () => {
 const knownErrorCodes = [
   'NOT_AUTHENTICATED', 'ROOM_NOT_FOUND', 'ROOM_NOT_JOINABLE', 'ROOM_FULL', 'NEED_TWO_PLAYERS', 'NEED_EXACT_CAPACITY',
   'NOT_HOST', 'NOT_A_MEMBER', 'NOT_YOUR_TURN', 'NOT_SPEAKER', 'SPEAKER_WINDOW_CLOSED', 'SELF_VOTE', 'VOTING_NOT_OPEN',
-  'NIGHT_ACTION_NOT_ALLOWED', 'PRIVATE_CHANNEL_FORBIDDEN', 'ROLE_NOT_READY', 'INVALID_MOVE', 'CELL_OCCUPIED', 'CONFLICT',
+  'NIGHT_ACTION_NOT_ALLOWED', 'PRIVATE_CHANNEL_FORBIDDEN', 'ROLE_NOT_READY', 'INVALID_GAME', 'INVALID_CAPACITY', 'INVALID_MOVE', 'CELL_OCCUPIED', 'CONFLICT',
   'GAME_NOT_ACTIVE', 'SESSION_NOT_FOUND', 'INVALID_CHOICE', 'CHOICE_ALREADY_MADE', 'CARD_NOT_REVEALED', 'CHAT_LIMIT_REACHED',
   'CHAT_CLOSED', 'INVALID_MESSAGE', 'INVALID_REACTION', 'MESSAGE_NOT_FOUND', 'SUPABASE_NOT_CONFIGURED',
 ]
@@ -193,6 +206,10 @@ export const nextOnlineTruthDareTurn = (input: { sessionId: string; expectedVers
 export const finishOnlineTruthDare = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_finish_truth_dare', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 
 export const startOnlineMafia = (roomId: string) => rpcSession('partyplay_start_mafia', { p_room_id: roomId })
+export const startOnlineFullGame = (roomId: string) => rpcSession('partyplay_start_full_game', { p_room_id: roomId })
+export const applyOnlineFullGameState = (input: { sessionId: string; state: FullGameState; turnUserId: string | null; status: 'running' | 'finished'; expectedVersion: number; eventType?: string }) => rpcSession('partyplay_apply_full_game_state', { p_session_id: input.sessionId, p_state: input.state, p_turn_user_id: input.turnUserId, p_status: input.status, p_expected_version: input.expectedVersion, p_command_id: commandId(), p_event_type: input.eventType || 'game_command' })
+export async function loadOnlinePrivateGameState(sessionId: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_load_private_game_state', { p_session_id: sessionId }); throwIfError(error); return (data || {}) as Record<string, unknown> }
+export async function saveOnlinePrivateGameState(sessionId: string, state: Record<string, unknown>) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_save_private_game_state', { p_session_id: sessionId, p_state: state }); throwIfError(error); return (data || {}) as Record<string, unknown> }
 export const acknowledgeOnlineMafiaRole = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_mafia_ack_role', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 export const setOnlineMafiaSpeaking = (input: { sessionId: string; mode: Exclude<MafiaSpeakerMode, null>; expectedVersion: number }) => rpcSession('partyplay_mafia_set_speaking', { p_session_id: input.sessionId, p_mode: input.mode, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 export const nextOnlineMafiaSpeaker = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_mafia_next_speaker', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
@@ -309,6 +326,8 @@ export function subscribeToOnlineRoom(roomId: string, onChange: () => void): Rea
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_mafia_players' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_mafia_team_messages' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_mafia_speaker_reactions' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_game_private_state' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_game_command_log' }, onChange)
     .subscribe()
 }
 
