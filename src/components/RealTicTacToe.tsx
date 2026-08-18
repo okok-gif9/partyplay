@@ -1,4 +1,4 @@
-import { ExternalLink, Link2, ShieldCheck } from 'lucide-react'
+import { Link2, ShieldCheck } from 'lucide-react'
 
 export default function RealTicTacToe({ onBack, onFriends }: { onBack: () => void; onFriends: () => void }) {
   const source = `${import.meta.env.BASE_URL}games/tic-tac-toe/index.html`
@@ -18,6 +18,5 @@ export default function RealTicTacToe({ onBack, onFriends }: { onBack: () => voi
     <div className="real-game-frame-shell">
       <iframe title="دوز کلاسیک واقعی" className="real-game-frame" src={source} allow="fullscreen"/>
     </div>
-    <p className="real-game-credit">بازی اصلی بر پایهٔ پروژهٔ متن‌باز <a href="https://github.com/ramazancetinkaya/tictactoe" target="_blank" rel="noreferrer">ramazancetinkaya/tictactoe <ExternalLink size={13}/></a> و تحت مجوز MIT اجرا می‌شود.</p>
   </section>
 }
