@@ -400,3 +400,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
     min-height: 940px;
   }
 }
+
+/* The Codenames board needs room for the complete 5×5 grid and room controls. */
+.real-codenames-frame-shell,
+.real-codenames-frame {
+  min-height: 860px;
+}
+
+@media (max-width: 680px) {
+  .real-codenames-frame-shell,
+  .real-codenames-frame {
+    min-height: 820px;
+  }
+}

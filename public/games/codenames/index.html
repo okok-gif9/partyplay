@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>رمز | پارتی پلی</title>
+  <meta name="description" content="بازی تیمی رمز با لینک دعوت و کد مشترک برای دورهمی‌های پارتی پلی." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🕵️%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🕵️</span>
+      <div class="brand-text">
+        <h1>رمز</h1>
+        <p class="subtitle">نبرد تیمی واژه‌ها</p>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="team-score red" id="red-score">
+        <span class="label">تیم قرمز</span>
+        <span class="count" id="red-count">9</span>
+      </div>
+      <div class="turn-indicator" id="turn-indicator">
+        <span id="turn-text">نوبت تیم قرمز</span>
+      </div>
+      <div class="team-score blue" id="blue-score">
+        <span class="label">تیم آبی</span>
+        <span class="count" id="blue-count">8</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="new-game-btn" class="btn primary">بازی تازه</button>
+      <button id="spymaster-btn" class="btn secondary">کلید محرمانه</button>
+      <button id="help-btn" class="btn ghost" aria-label="قوانین">?</button>
+    </div>
+  </header>
+
+  <!-- Multiplayer / room bar -->
+  <section class="room-bar">
+    <div class="room-group code-group" title="کد این بازی">
+      <span class="room-label">کد</span>
+      <span class="code" id="code-display">------</span>
+      <button class="btn small" id="copy-link-btn">🔗 کپی لینک</button>
+    </div>
+    <div class="room-divider" aria-hidden="true"></div>
+    <div class="room-group join-group">
+      <span class="room-label">ورود با کد</span>
+      <input
+        id="join-code-input"
+        class="code-input"
+        type="text"
+        maxlength="6"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        placeholder="ABC123"
+        aria-label="کد شش‌حرفی بازی"
+      />
+      <button class="btn small secondary" id="join-btn">ورود</button>
+    </div>
+  </section>
+
+  <main>
+    <div class="board" id="board"></div>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Game over modal -->
+  <div class="modal-backdrop" id="gameover-modal" hidden>
+    <div class="modal">
+      <h2 id="gameover-title">بازی تمام شد</h2>
+      <p id="gameover-text"></p>
+      <button class="btn primary" id="gameover-newgame">بازی دوباره</button>
+    </div>
+  </div>
+
+  <!-- Help / rules modal -->
+  <div class="modal-backdrop" id="help-modal" hidden>
+    <div class="modal help-modal">
+      <h2>قوانین بازی</h2>
+      <div class="rules">
+        <p><strong>رمز</strong> یک بازی واژه‌ای تیمی است. دو تیم <span class="red-text">قرمز</span> و <span class="blue-text">آبی</span> رقابت می‌کنند.</p>
+        <ul>
+          <li>هر تیم یک <strong>رمزدار</strong> دارد که رنگ واقعی همهٔ کارت‌ها را می‌بیند.</li>
+          <li>رمزدار یک <strong>سرنخ تک‌واژه‌ای</strong> و یک عدد می‌گوید؛ مثلاً «میوه ۳».</li>
+          <li>هم‌تیمی‌ها با آن سرنخ، کارت‌های موردنظر را حدس می‌زنند و انتخاب می‌کنند.</li>
+          <li>کارت هم‌رنگ تیم خودتان نوبت را حفظ می‌کند؛ کارت تیم مقابل نوبت را می‌سپارد.</li>
+          <li>کارت <strong>خنثی</strong> خاکستری نیز نوبت را تمام می‌کند.</li>
+          <li>کارت <strong>قاتل</strong> سیاه باعث باخت فوری آن تیم می‌شود.</li>
+          <li>تیمی که زودتر همهٔ مأمورهای خود را آشکار کند، برنده است.</li>
+        </ul>
+
+        <h3 class="rules-subhead">📱 بازی روی چند دستگاه</h3>
+        <ul>
+          <li>با «بازی تازه» یک <strong>کد</strong> شش‌کاراکتری مانند <code>K7M2QX</code> ساخته می‌شود.</li>
+          <li>«🔗 کپی لینک» را بزن و لینک را برای دوستانت بفرست؛ همه همان ۲۵ کارت و همان چیدمان را می‌بینند.</li>
+          <li>یا کد را بگو تا دوستت آن را در بخش «ورود با کد» وارد کند.</li>
+          <li>هر رمزدار روی <strong>دستگاه خود</strong> دکمهٔ «کلید محرمانه» را می‌زند و فقط او رنگ‌ها را می‌بیند.</li>
+          <li>سرنخ‌ها را حضوری یا در تماس صوتی بدهید؛ هر تیم هماهنگ می‌کند چه کسی کارت را انتخاب کند.</li>
+        </ul>
+
+        <p class="tip">💡 یک کد برابر است با یک برد یکسان در هر دستگاه و هرجا.</p>
+      </div>
+      <button class="btn primary" id="help-close">متوجه شدم</button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <span>لینک یا کد بازی را برای دوستانت بفرست</span>
+  </footer>
+
+  <script src="words.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
