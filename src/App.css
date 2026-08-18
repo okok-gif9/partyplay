@@ -361,3 +361,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 .real-game-credit { margin: 0; color: var(--muted); text-align: center; font-size: .78rem; }
 .real-game-credit a { color: var(--violet); display: inline-flex; align-items: center; gap: .25rem; }
 @media (max-width: 680px) { .real-game-header { align-items: flex-start; flex-direction: column; } .real-game-frame-shell, .real-game-frame { min-height: 670px; } }
+
+/* The imported Connect Four switches to a vertical game layout inside PartyPlay. */
+.real-connect-four-frame-shell,
+.real-connect-four-frame {
+  min-height: 920px;
+}
+
+@media (max-width: 680px) {
+  .real-connect-four-frame-shell,
+  .real-connect-four-frame {
+    min-height: 850px;
+  }
+}
