@@ -387,3 +387,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
     min-height: 780px;
   }
 }
+
+/* The complete hidden-role flow includes setup, private reveals, voting and a scorecard. */
+.real-spyfall-frame-shell,
+.real-spyfall-frame {
+  min-height: 980px;
+}
+
+@media (max-width: 680px) {
+  .real-spyfall-frame-shell,
+  .real-spyfall-frame {
+    min-height: 940px;
+  }
+}
