@@ -413,3 +413,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
     min-height: 820px;
   }
 }
+
+/* Canvas Backgammon keeps a full 2:1 board plus controls in view. */
+.real-backgammon-frame-shell,
+.real-backgammon-frame {
+  min-height: 680px;
+}
+
+@media (max-width: 680px) {
+  .real-backgammon-frame-shell,
+  .real-backgammon-frame {
+    min-height: 570px;
+  }
+}

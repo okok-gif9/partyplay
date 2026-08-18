@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <!-- <meta name=viewport content='width=device-width,initial-scale=1,user-scalable=0'> -->
+  <title>تخته‌نرد | پارتی پلی</title>
+  <style>
+    body {
+      background: #222;
+      color: #eee;
+      font-family: 'Vazirmatn', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 10px;
+    }
+    canvas {
+      background: #c9a26b;
+      border: 4px solid #000;
+      margin-bottom: 10px;
+      max-width: 100%;
+      height: auto;
+      touch-action: manipulation;
+    }
+    #controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 1000px;
+    }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="board" width="1000" height="500"></canvas>
+  <div id="controls">
+    <select id="boardStyle">
+      <option value="classic">کلاسیک</option>
+      <option value="coffee">قهوه‌ای</option>
+      <option value="elegance">اشرافی</option>
+      <option value="lavender">یاسی</option>
+      <option value="diamond">الماسی</option>
+      <option value="casino">کازینو</option>
+      <option value="monochrome">تک‌رنگ</option>  
+    </select>
+    <button id="restartBtn">شروع دوباره</button>
+    <button id="rollBtn">تاس بریز</button>
+    <span id="diceDisplay"></span>
+    <span id="status"></span>
+    <br>
+    <span id="pipcount"></span>
+  </div>
+  <script src="backgammon_ai.js"></script>
+  <script src="backgammon.js"></script>
+</body>
+</html>

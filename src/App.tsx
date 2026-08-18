@@ -33,6 +33,7 @@ import RealConnectFour from './components/RealConnectFour'
 import RealUno from './components/RealUno'
 import RealSpyfall from './components/RealSpyfall'
 import RealCodenames from './components/RealCodenames'
+import RealBackgammon from './components/RealBackgammon'
 import { gameById, gameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
 import type { FullPartyPlayGameType } from './lib/partyplay'
 
@@ -141,10 +142,10 @@ function App() {
   }
   const startPractice = (game: GameId) => {
     sessionProgress.markStarted(game)
-    if (game === 'snakes' || game === 'ludo' || game === 'connect-four' || game === 'uno' || game === 'spyfall' || game === 'codenames') {
+    if (game === 'snakes' || game === 'ludo' || game === 'connect-four' || game === 'uno' || game === 'spyfall' || game === 'codenames' || game === 'backgammon') {
       setSelectedGame(game)
       setPage('game')
-      const readyMessage = game === 'ludo' ? 'منچ با ربات آماده است.' : game === 'connect-four' ? 'چهاردرردیف با ربات آماده است.' : game === 'uno' ? 'اونو با ربات آماده است.' : game === 'spyfall' ? 'جاسوس برای دورهمی آماده است.' : game === 'codenames' ? 'رمز برای رقابت تیمی آماده است.' : 'مارپله با ربات آماده است.'
+      const readyMessage = game === 'ludo' ? 'منچ با ربات آماده است.' : game === 'connect-four' ? 'چهاردرردیف با ربات آماده است.' : game === 'uno' ? 'اونو با ربات آماده است.' : game === 'spyfall' ? 'جاسوس برای دورهمی آماده است.' : game === 'codenames' ? 'رمز برای رقابت تیمی آماده است.' : game === 'backgammon' ? 'تخته‌نرد با ربات آماده است.' : 'مارپله با ربات آماده است.'
       setToast(readyMessage)
       return
     }
@@ -236,6 +237,7 @@ function App() {
     if (page === 'game' && selectedGame === 'uno') return <RealUno onBack={() => setPage('games')} onFriends={() => openFriendsGame('uno')}/>
     if (page === 'game' && selectedGame === 'spyfall') return <RealSpyfall onBack={() => setPage('games')} onFriends={() => openFriendsGame('spyfall')}/>
     if (page === 'game' && selectedGame === 'codenames') return <RealCodenames onBack={() => setPage('games')} onFriends={() => openFriendsGame('codenames')}/>
+    if (page === 'game' && selectedGame === 'backgammon') return <RealBackgammon onBack={() => setPage('games')} onFriends={() => openFriendsGame('backgammon')}/>
     if (page === 'game') return <GamePage game={activeGame} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} onOnlineMove={(index) => void makeOnlineMove(index).then(() => sessionProgress.markAction('tic-tac-toe')).catch(showOnlineError)} onRestart={() => resetPractice(selectedGame)} truthMode={truthMode} truthIndex={truthIndex} truthDone={truthDone} onDraw={drawCard} onTruthDone={() => { setTruthDone((value) => value + 1); sessionProgress.markAction('truth-dare') }} mafiaPhase={mafiaPhase} mafiaRole={mafiaRole} mafiaVote={mafiaVote} onBeginMafia={beginMafia} onVote={(name) => { setMafiaVote(name); sessionProgress.markAction('mafia') }} onBack={() => setPage('home')} />
     return <HomePage name={playerName} avatarSeed={playerAvatarSeed} groups={groups} friends={friends} loading={loading} onPractice={startPractice} onFriendsGame={openFriendsGame} onCreateOnline={createOnlineTicTacToe} onOnlineMafia={() => setPage('mafia-setup')} onGames={() => setPage('games')} onGroups={() => setPage('groups')} onFriends={() => setPage('friends')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
   }
