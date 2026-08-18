@@ -348,3 +348,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 .card-friend-button { background: transparent !important; color: var(--muted) !important; border: 1px solid var(--line) !important; box-shadow: none !important; }
 .card-friend-button:hover { border-color: var(--accent, var(--violet)) !important; color: var(--text) !important; transform: translateY(-1px); }
 @media (max-width: 560px) { .game-card-bottom { align-items: flex-start; gap: 0.7rem; flex-direction: column; } .game-card-actions { width: 100%; justify-content: flex-start; } }
+
+
+/* Host for imported full games: the game itself owns its board and interaction. */
+.real-game-page { display: grid; gap: 1.2rem; max-width: 1120px; margin: 0 auto; }
+.real-game-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.1rem; padding: 1.25rem 1.4rem; border: 1px solid var(--line); border-radius: 22px; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: var(--shadow-sm); }
+.real-game-header h1 { margin: .4rem 0; font-size: clamp(1.7rem, 3vw, 2.35rem); }
+.real-game-header p { margin: 0; color: var(--muted); }
+.real-game-actions { display: flex; flex-wrap: wrap; gap: .65rem; }
+.real-game-frame-shell { min-height: 720px; overflow: hidden; border: 1px solid var(--line); border-radius: 24px; background: #1a2a33; box-shadow: var(--shadow); }
+.real-game-frame { width: 100%; min-height: 720px; border: 0; display: block; background: #1a2a33; }
+.real-game-credit { margin: 0; color: var(--muted); text-align: center; font-size: .78rem; }
+.real-game-credit a { color: var(--violet); display: inline-flex; align-items: center; gap: .25rem; }
+@media (max-width: 680px) { .real-game-header { align-items: flex-start; flex-direction: column; } .real-game-frame-shell, .real-game-frame { min-height: 670px; } }

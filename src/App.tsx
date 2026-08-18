@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft, Check, ChevronLeft, Dice5, Gamepad2, Grid2X2,
   Home, Link2, Menu, Moon, MoonStar, Play, Plus, Settings2, Sparkles, Sun,
@@ -27,6 +27,7 @@ import { GroupBadge, PlayerAvatar } from './components/SocialIdentity'
 import { ProfileSettingsPage, SocialFriendsPage, SocialGroupsPage } from './components/SocialPages'
 import SnakesBoard from './components/SnakesBoard'
 import OpenSourceArcade from './components/OpenSourceArcade'
+import RealTicTacToe from './components/RealTicTacToe'
 import { gameById, gameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
 import type { FullPartyPlayGameType } from './lib/partyplay'
 
@@ -53,8 +54,6 @@ function App() {
   const [selectedGame, setSelectedGame] = useState<GameId>('tic-tac-toe')
   const [toast, setToast] = useState('')
   const [nameDraft, setNameDraft] = useState('')
-  const [localBoard, setLocalBoard] = useState<(null | 'X' | 'O')[]>(Array(9).fill(null))
-  const [localTurn, setLocalTurn] = useState<'X' | 'O'>('X')
   const [truthMode, setTruthMode] = useState<'truth' | 'dare'>('truth')
   const [truthOrder, setTruthOrder] = useState(() => shuffledIndexes(truthCards.length))
   const [dareOrder, setDareOrder] = useState(() => shuffledIndexes(dareCards.length))
@@ -79,11 +78,6 @@ function App() {
   const playerInitial = initial(playerName)
   const playerAvatarSeed = profile?.avatarSeed || 'mint'
   const truthIndex = truthMode === 'truth' ? truthOrder[truthCursor] : dareOrder[dareCursor]
-  const localWinner = useMemo(() => {
-    const lines = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]]
-    for (const [a, b, c] of lines) if (localBoard[a] && localBoard[a] === localBoard[b] && localBoard[a] === localBoard[c]) return localBoard[a]
-    return localBoard.every(Boolean) ? 'draw' : null
-  }, [localBoard])
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-color-scheme: dark)')
@@ -98,20 +92,6 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
   useEffect(() => { if (profile && !nameDraft) setNameDraft(profile.displayName) }, [profile, nameDraft])
-  useEffect(() => {
-    if (page !== 'game' || selectedGame !== 'tic-tac-toe' || localTurn !== 'O' || localWinner) return
-    const timer = window.setTimeout(() => {
-      setLocalBoard((previous) => {
-        const options = previous.map((value, index) => value ? -1 : index).filter((index) => index >= 0)
-        if (!options.length) return previous
-        const next = [...previous]
-        next[options[Math.floor(Math.random() * options.length)]] = 'O'
-        return next
-      })
-      setLocalTurn('X')
-    }, 520)
-    return () => window.clearTimeout(timer)
-  }, [page, selectedGame, localTurn, localWinner])
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('room')
     if (!inviteCode || onlineRoom || truthDare.room || mafia.room) return
@@ -150,8 +130,6 @@ function App() {
   const showOnlineError = (error: unknown) => setToast(error instanceof Error ? error.message : 'ارتباط با بازی کامل نشد. دوباره تلاش کن.')
   const resetPractice = (game: GameId) => {
     setSelectedGame(game)
-    setLocalBoard(Array(9).fill(null))
-    setLocalTurn('X')
     setTruthMode('truth')
     setTruthOrder(shuffledIndexes(truthCards.length))
     setDareOrder(shuffledIndexes(dareCards.length))
@@ -216,12 +194,6 @@ function App() {
       setToast('لابی مافیا آماده شد؛ لینک دعوت را برای بازیکن‌ها بفرست.')
     }).catch(showOnlineError)
   }
-  const makePracticeMove = (index: number) => {
-    if (selectedGame !== 'tic-tac-toe' || localBoard[index] || localTurn !== 'X' || localWinner) return
-    setLocalBoard((previous) => previous.map((value, cellIndex) => cellIndex === index ? 'X' : value))
-    sessionProgress.markAction('tic-tac-toe')
-    setLocalTurn('O')
-  }
   const rollDice = () => {
     if (snakePosition >= 100) return
     const roll = Math.floor(Math.random() * 6) + 1
@@ -264,7 +236,8 @@ function App() {
     if (page === 'mafia-room' && mafia.room) return <OnlineMafiaRoom room={mafia.room} currentUserId={mafia.currentUserId} pending={mafia.pending} error={mafia.error} onStart={() => void mafia.start().then(() => setPage('mafia-game')).catch(showOnlineError)}/>
     if (page === 'truth-game' && truthDare.room?.session && truthDare.currentUserId) return <section className="game-page accent-gold"><div className="game-topline"><button className="back-link" onClick={() => setPage('home')}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>بازی آنلاین</div></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Sparkles size={21}/></span><div><strong>جرئت یا حقیقت</strong><span>{truthDare.room.room.name}</span></div></div></div><OnlineTruthDare room={truthDare.room} session={truthDare.room.session} messages={truthDare.messages} currentUserId={truthDare.currentUserId} pending={truthDare.pending} onChoose={(choice) => void truthDare.choose(choice).then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onNextTurn={() => void truthDare.nextTurn().then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onFinish={() => void truthDare.finish().catch(showOnlineError)} onSendMessage={(body) => void truthDare.sendMessage(body).catch(showOnlineError)} onToggleReaction={(messageId, reaction) => void truthDare.toggleReaction(messageId, reaction).catch(showOnlineError)}/></section>
     if (page === 'mafia-game' && mafia.room?.session && mafia.privateView) return <section className="game-page accent-pink"><div className="game-topline"><button className="back-link" onClick={() => setPage('home')}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>بازی آنلاین</div></div><OnlineMafia room={mafia.room} view={mafia.privateView} messages={mafia.messages} teamMessages={mafia.teamMessages} speakerReactions={mafia.speakerReactions} currentUserId={mafia.currentUserId} pending={mafia.pending} error={mafia.error} onAcknowledge={() => void mafia.acknowledgeRole().then(() => sessionProgress.markAction('mafia')).catch(showOnlineError)} onSetSpeaking={(mode) => void mafia.setSpeaking(mode).catch(showOnlineError)} onNextSpeaker={() => void mafia.nextSpeaker().catch(showOnlineError)} onSendDayMessage={(body) => void mafia.sendDayMessage(body).catch(showOnlineError)} onReact={(reaction) => void mafia.react(reaction).catch(showOnlineError)} onVote={(choice, targetUserId) => void mafia.vote(choice, targetUserId).catch(showOnlineError)} onResolveVote={() => void mafia.resolveVote().catch(showOnlineError)} onOpenNight={() => void mafia.openNight().catch(showOnlineError)} onSendTeamMessage={(body) => void mafia.sendTeamMessage(body).catch(showOnlineError)} onSubmitNightAction={(targetUserId) => void mafia.submitNightAction(targetUserId).catch(showOnlineError)} onAdvanceNight={() => void mafia.advanceNight().catch(showOnlineError)}/></section>
-    if (page === 'game') return <GamePage game={activeGame} playerName={playerName} playerInitial={playerInitial} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} localBoard={localBoard} localWinner={localWinner} localTurn={localTurn} onLocalMove={makePracticeMove} onOnlineMove={(index) => void makeOnlineMove(index).then(() => sessionProgress.markAction('tic-tac-toe')).catch(showOnlineError)} onRestart={() => resetPractice(selectedGame)} truthMode={truthMode} truthIndex={truthIndex} truthDone={truthDone} onDraw={drawCard} onTruthDone={() => { setTruthDone((value) => value + 1); sessionProgress.markAction('truth-dare') }} snakePosition={snakePosition} lastRoll={lastRoll} onRoll={rollDice} onSnakeRestart={() => { setSnakePosition(1); setLastRoll(null) }} mafiaPhase={mafiaPhase} mafiaRole={mafiaRole} mafiaVote={mafiaVote} onBeginMafia={beginMafia} onVote={(name) => { setMafiaVote(name); sessionProgress.markAction('mafia') }} onBack={() => setPage('home')} />
+    if (page === 'game' && selectedGame === 'tic-tac-toe' && !(onlineRoom?.session && onlineUserId)) return <RealTicTacToe onBack={() => setPage('games')} onFriends={createOnlineTicTacToe}/>
+    if (page === 'game') return <GamePage game={activeGame} playerName={playerName} playerInitial={playerInitial} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} onOnlineMove={(index) => void makeOnlineMove(index).then(() => sessionProgress.markAction('tic-tac-toe')).catch(showOnlineError)} onRestart={() => resetPractice(selectedGame)} truthMode={truthMode} truthIndex={truthIndex} truthDone={truthDone} onDraw={drawCard} onTruthDone={() => { setTruthDone((value) => value + 1); sessionProgress.markAction('truth-dare') }} snakePosition={snakePosition} lastRoll={lastRoll} onRoll={rollDice} onSnakeRestart={() => { setSnakePosition(1); setLastRoll(null) }} mafiaPhase={mafiaPhase} mafiaRole={mafiaRole} mafiaVote={mafiaVote} onBeginMafia={beginMafia} onVote={(name) => { setMafiaVote(name); sessionProgress.markAction('mafia') }} onBack={() => setPage('home')} />
     return <HomePage name={playerName} avatarSeed={playerAvatarSeed} groups={groups} friends={friends} loading={loading} onPractice={startPractice} onFriendsGame={openFriendsGame} onCreateOnline={createOnlineTicTacToe} onOnlineMafia={() => setPage('mafia-setup')} onGames={() => setPage('games')} onGroups={() => setPage('groups')} onFriends={() => setPage('friends')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
   }
 
@@ -324,13 +297,11 @@ function GameCard({ game, action, onPlay, friendAction, onFriendPlay, started = 
 
 function GamesPage({ onBack, onPractice, onFriendsGame, onOnlineTicTacToe, onOnlineTruthDare, started, earnedMedals }: { onBack: () => void; onPractice: (game: GameId) => void; onFriendsGame: (game: GameId) => void; onOnlineTicTacToe: () => void; onOnlineTruthDare: () => void; started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) { return <section className="sub-page"><PageTitle eyebrow="بازی کن" title="بازی رو انتخاب کن" description="تنها هستی؟ ربات را انتخاب کن. جمع داری؟ اتاق خصوصی بساز." onBack={onBack}/><div className="all-games-grid">{games.map((game) => <GameCard game={game} key={game.id} action="بازی با ربات" friendAction="اتاق دوستان" onPlay={() => onPractice(game.id)} onFriendPlay={() => onFriendsGame(game.id)} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)}/>)}</div><section className="mode-panel"><div><span className="eyebrow">دوز واقعی دونفره</span><h2>برای رقابت با دوستت، لینک اختصاصی بساز</h2></div><button className="primary-button" onClick={onOnlineTicTacToe}><Link2 size={18}/>ساخت اتاق آنلاین</button></section><section className="mode-panel truth-mode-panel"><div><span className="eyebrow">جرئت‌وحقیقت گروهی</span><h2>دوست‌ها را با لینک خصوصی وارد کن</h2></div><button className="primary-button" onClick={onOnlineTruthDare}><Sparkles size={18}/>ساخت اتاق گروهی</button></section></section> }
 
-function GamePage({ game, playerName, playerInitial, onlineRoom, onlineUserId, onlinePending, localBoard, localWinner, localTurn, onLocalMove, onOnlineMove, onRestart, truthMode, truthIndex, truthDone, onDraw, onTruthDone, snakePosition, lastRoll, onRoll, onSnakeRestart, mafiaPhase, mafiaRole, mafiaVote, onBeginMafia, onVote, onBack }: { game: GameDefinition; playerName: string; playerInitial: string; onlineRoom: ReturnType<typeof useOnlineTicTacToe>['room']; onlineUserId: string | null; onlinePending: boolean; localBoard: (null|'X'|'O')[]; localWinner: string | null; localTurn: 'X'|'O'; onLocalMove: (index: number) => void; onOnlineMove: (index: number) => void; onRestart: () => void; truthMode: 'truth'|'dare'; truthIndex: number; truthDone: number; onDraw: (mode: 'truth'|'dare') => void; onTruthDone: () => void; snakePosition: number; lastRoll: number | null; onRoll: () => void; onSnakeRestart: () => void; mafiaPhase: PracticePhase; mafiaRole: string; mafiaVote: string | null; onBeginMafia: () => void; onVote: (name: string) => void; onBack: () => void }) {
+function GamePage({ game, playerName, playerInitial, onlineRoom, onlineUserId, onlinePending, onOnlineMove, onRestart, truthMode, truthIndex, truthDone, onDraw, onTruthDone, snakePosition, lastRoll, onRoll, onSnakeRestart, mafiaPhase, mafiaRole, mafiaVote, onBeginMafia, onVote, onBack }: { game: GameDefinition; playerName: string; playerInitial: string; onlineRoom: ReturnType<typeof useOnlineTicTacToe>['room']; onlineUserId: string | null; onlinePending: boolean; onOnlineMove: (index: number) => void; onRestart: () => void; truthMode: 'truth'|'dare'; truthIndex: number; truthDone: number; onDraw: (mode: 'truth'|'dare') => void; onTruthDone: () => void; snakePosition: number; lastRoll: number | null; onRoll: () => void; onSnakeRestart: () => void; mafiaPhase: PracticePhase; mafiaRole: string; mafiaVote: string | null; onBeginMafia: () => void; onVote: (name: string) => void; onBack: () => void }) {
   const Icon = game.icon
   const hasOnlineTicTacToe = game.id === 'tic-tac-toe' && onlineRoom?.session && onlineUserId
-  return <section className={`game-page accent-${game.accent}`}><div className="game-topline"><button className="back-link" onClick={onBack}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>{hasOnlineTicTacToe ? 'بازی آنلاین' : 'تمرین قابل‌بازی'}</div></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Icon size={21}/></span><div><strong>{game.title}</strong><span>{hasOnlineTicTacToe ? onlineRoom.room.name : 'شروع فوری'}</span></div></div><button className="secondary-button" onClick={onRestart}><Zap size={16}/>شروع دوباره</button></div>{hasOnlineTicTacToe ? <OnlineTicTacToe room={onlineRoom} session={onlineRoom.session!} currentUserId={onlineUserId} pending={onlinePending} onMove={onOnlineMove} onRematch={onRestart}/> : game.id === 'tic-tac-toe' ? <PracticeTicTacToe board={localBoard} winner={localWinner} turn={localTurn} playerName={playerName} playerInitial={playerInitial} onMove={onLocalMove} onRestart={onRestart}/> : game.id === 'truth-dare' ? <TruthDare mode={truthMode} index={truthIndex} done={truthDone} onDraw={onDraw} onDone={onTruthDone}/> : game.id === 'snakes' ? <SnakesAndLadders position={snakePosition} lastRoll={lastRoll} playerName={playerName} playerInitial={playerInitial} onRoll={onRoll} onRestart={onSnakeRestart}/> : <MafiaPractice phase={mafiaPhase} role={mafiaRole} vote={mafiaVote} onBegin={onBeginMafia} onVote={onVote}/>}</section>
+  return <section className={`game-page accent-${game.accent}`}><div className="game-topline"><button className="back-link" onClick={onBack}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>{hasOnlineTicTacToe ? 'بازی آنلاین' : 'تمرین قابل‌بازی'}</div></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Icon size={21}/></span><div><strong>{game.title}</strong><span>{hasOnlineTicTacToe ? onlineRoom.room.name : 'شروع فوری'}</span></div></div><button className="secondary-button" onClick={onRestart}><Zap size={16}/>شروع دوباره</button></div>{hasOnlineTicTacToe ? <OnlineTicTacToe room={onlineRoom} session={onlineRoom.session!} currentUserId={onlineUserId} pending={onlinePending} onMove={onOnlineMove} onRematch={onRestart}/> : game.id === 'truth-dare' ? <TruthDare mode={truthMode} index={truthIndex} done={truthDone} onDraw={onDraw} onDone={onTruthDone}/> : game.id === 'snakes' ? <SnakesAndLadders position={snakePosition} lastRoll={lastRoll} playerName={playerName} playerInitial={playerInitial} onRoll={onRoll} onRestart={onSnakeRestart}/> : <MafiaPractice phase={mafiaPhase} role={mafiaRole} vote={mafiaVote} onBegin={onBeginMafia} onVote={onVote}/>}</section>
 }
-
-function PracticeTicTacToe({ board, winner, turn, playerName, playerInitial, onMove, onRestart }: { board: (null|'X'|'O')[]; winner: string | null; turn: 'X'|'O'; playerName: string; playerInitial: string; onMove: (index: number) => void; onRestart: () => void }) { const message = winner === 'X' ? 'بردی! خط X کامل شد.' : winner === 'O' ? 'ربات این دور را برد؛ یک دور دیگر؟' : winner === 'draw' ? 'مساوی شد؛ حرکت بعدی با توست.' : turn === 'X' ? 'نوبت توئه؛ یک خانه انتخاب کن.' : 'ربات در حال انتخاب حرکت است…'; return <div className="play-layout"><aside className="player-card current-player">{avatar(playerInitial,'pink','large-avatar')}<div><span>تو</span><strong>{playerName}</strong><small>مهرهٔ X</small></div><b className="player-mark">X</b></aside><main className="board-panel"><div className="turn-message"><span className="turn-badge">{turn}</span><p>{message}</p></div><div className="tic-board" aria-label="صفحهٔ تمرین دوز">{board.map((cell, index) => <button key={index} className={`tic-cell ${cell ? `mark-${cell}` : ''}`} onClick={() => onMove(index)} disabled={Boolean(cell) || Boolean(winner) || turn !== 'X'} aria-label={`خانهٔ ${index + 1}`}>{cell}</button>)}</div>{winner && <button className="primary-button rematch-button" onClick={onRestart}><Zap size={17}/>یه دور دیگه</button>}<div className="board-meta"><span>تمرین با ربات</span><i/><span>قابل بازی آفلاین</span></div></main><aside className="player-card rival-player">{avatar('ر','cyan','large-avatar')}<div><span>حریف</span><strong>ربات پارتی‌پلی</strong><small>مهرهٔ O</small></div><b className="player-mark">O</b></aside></div> }
 
 function TruthDare({ mode, index, done, onDraw, onDone }: { mode: 'truth'|'dare'; index: number; done: number; onDraw: (mode: 'truth'|'dare') => void; onDone: () => void }) { const deck = mode === 'truth' ? truthCards : dareCards; const card = deck[index] || deck[0]; return <div className="practice-stage truth-stage"><span className="preview-symbol"><Sparkles size={48}/></span><div className="truth-card-meta"><span className="pill">کارت {mode === 'truth' ? 'حقیقت' : 'جرئت'}</span><span className={`difficulty-chip ${card.level === 'چالشی و جسورانه' ? 'difficulty-bold' : ''}`}>{card.level}</span></div><div className="truth-card-motion" key={`${mode}-${index}`}><h2>«{card.text}»</h2><p>اختیار کامل با توست؛ انجامش بده، ردش کن یا کارت بعدی را بکش.</p></div><div className="preview-actions truth-choice-actions"><button className={`secondary-button ${mode === 'truth' ? 'choice-active' : ''}`} onClick={() => onDraw('truth')}>حقیقت بعدی</button><button className={`primary-button ${mode === 'dare' ? 'choice-active' : ''}`} onClick={() => onDraw('dare')}>جرئت بعدی</button></div><div className="truth-card-footer"><button className="text-button" onClick={() => onDraw(mode)}><ChevronLeft size={17}/>رد کردن</button><button className="secondary-button" onClick={() => { onDone(); onDraw(mode) }}><Check size={17}/>انجام شد · {done}</button></div></div> }
 
