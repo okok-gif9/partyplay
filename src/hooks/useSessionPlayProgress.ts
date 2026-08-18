@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { PartyGameId } from '../data/gameCatalog'
 
-export type SessionGameId = 'mafia' | 'tic-tac-toe' | 'truth-dare' | 'snakes'
+export type SessionGameId = PartyGameId
 export type MedalId = 'first_move' | 'card_spark' | 'dice_runner' | 'night_detective'
 
 export type SessionMedal = {
