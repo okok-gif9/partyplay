@@ -374,3 +374,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
     min-height: 850px;
   }
 }
+
+/* UnoDeck is a complete mobile-first tabletop experience. */
+.real-uno-frame-shell,
+.real-uno-frame {
+  min-height: 820px;
+}
+
+@media (max-width: 680px) {
+  .real-uno-frame-shell,
+  .real-uno-frame {
+    min-height: 780px;
+  }
+}
