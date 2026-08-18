@@ -341,3 +341,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 @media (prefers-reduced-motion: reduce) { .truth-lottery > span { animation: none; } .truth-player-token { transition: opacity .15s linear; } }
 
 .auth-game-preview{margin:16px 0 4px;padding:12px;border:1px solid color-mix(in srgb,var(--violet) 28%,var(--line));border-radius:14px;background:color-mix(in srgb,var(--surface) 82%,var(--violet-soft) 18%)}.auth-game-preview>span{display:block;margin-bottom:8px;color:var(--muted);font-size:.74rem;font-weight:800}.auth-game-preview>div{display:flex;gap:6px;flex-wrap:wrap}.auth-game-preview b{padding:4px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:.68rem;color:var(--text)}
+
+/* شروع فوری با ربات و ورود به اتاق خصوصی از روی هر کارت بازی */
+.game-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
+.game-card-actions > button { white-space: nowrap; }
+.card-friend-button { background: transparent !important; color: var(--muted) !important; border: 1px solid var(--line) !important; box-shadow: none !important; }
+.card-friend-button:hover { border-color: var(--accent, var(--violet)) !important; color: var(--text) !important; transform: translateY(-1px); }
+@media (max-width: 560px) { .game-card-bottom { align-items: flex-start; gap: 0.7rem; flex-direction: column; } .game-card-actions { width: 100%; justify-content: flex-start; } }
