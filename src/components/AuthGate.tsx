@@ -10,6 +10,7 @@ type AuthGateProps = {
 }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const gamePreview = ['مافیا', 'جاسوس', 'اونو', 'بکش و حدس بزن', 'چهاردرردیف', 'تخته‌نرد', 'منچ', 'مارپله', 'رمز', 'حکم']
 
 function authErrorMessage(message: string) {
   const normalized = message.toLowerCase()
@@ -105,6 +106,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
             <span className="eyebrow"><ShieldCheck size={15} /> ورود امن و بدون رمز</span>
             <h1 id="auth-title">بازی از همین‌جا شروع می‌شه</h1>
             <p className="auth-lead">ایمیلت رو وارد کن؛ یک پیوند یک‌بارمصرف می‌فرستیم تا وارد جمع خودت بشی.</p>
+            <div className="auth-game-preview" aria-label="بازی‌های تازه"><span>بازی‌های تازه</span><div>{gamePreview.map((game) => <b key={game}>{game}</b>)}</div></div>
 
             {stage === 'email' ? (
               <div className="auth-form">
