@@ -102,6 +102,7 @@ export type MafiaPrivateView = {
   }
   teammates: Array<{ user_id: string; display_name: string; role: MafiaRole; is_alive: boolean }>
   detective_result: 'citizen' | 'mafia' | 'godfather' | null
+  revealed_roles?: Array<{ user_id: string; display_name: string; role: MafiaRole; faction: MafiaFaction; is_alive: boolean }>
 }
 
 export type MafiaTeamMessage = { id: number; dayNo: number; senderId: string; body: string; createdAt: string }
