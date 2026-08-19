@@ -105,6 +105,44 @@ export type MafiaPrivateView = {
   revealed_roles?: Array<{ user_id: string; display_name: string; role: MafiaRole; faction: MafiaFaction; is_alive: boolean }>
 }
 
+export type AdminSession = {
+  is_admin: true
+  profile: { id: string; display_name: string; username: string; avatar_seed: string }
+}
+
+export type AdminDashboard = {
+  stats: { total_users: number; active_users_7d: number; open_rooms: number; live_rooms: number; completed_games: number }
+  activity: Array<{ date: string; registrations: number; active_users: number }>
+  top_games: Array<{ game_type: PartyPlayGameType; completed_games: number; sessions: number }>
+  recent_rooms: Array<{ id: string; name: string; game_type: PartyPlayGameType; status: PartyPlayRoom['status']; capacity: number; invite_code: string; host_display_name: string; created_at: string; is_admin_test: boolean }>
+}
+
+export type AdminUserSummary = {
+  id: string
+  display_name: string
+  username: string
+  avatar_seed: string
+  presence: 'online' | 'away' | 'busy' | 'offline'
+  created_at: string
+  room_count: number
+  completed_games: number
+}
+
+export type AdminUserList = { items: AdminUserSummary[]; total: number; limit: number; offset: number }
+
+export type AdminUserDetail = AdminUserSummary & { email: string | null; last_activity_at: string | null }
+
+export type AdminTestRoom = {
+  id: string
+  invite_code: string
+  name: string
+  game_type: PartyPlayGameType
+  status: PartyPlayRoom['status']
+  capacity: number
+  member_count?: number
+  created_at?: string
+}
+
 export type MafiaTeamMessage = { id: number; dayNo: number; senderId: string; body: string; createdAt: string }
 export type MafiaSpeakerReactionEvent = { dayNo: number; speakerId: string; reactorId: string; reaction: MafiaReaction }
 export type LoadedRoom = { room: PartyPlayRoom; members: PartyPlayRoomMember[]; session: PartyPlaySession | null }
@@ -148,6 +186,10 @@ const roomErrorMessage = (code: string) => {
     INVALID_REACTION: 'این واکنش قابل استفاده نیست.',
     MESSAGE_NOT_FOUND: 'پیام موردنظر پیدا نشد.',
     SUPABASE_NOT_CONFIGURED: 'اتصال آنلاین در این نسخهٔ توسعه تنظیم نشده است؛ نسخهٔ منتشرشده را امتحان کن.',
+    NOT_ADMIN: 'اجازهٔ دسترسی به پنل مدیریت را نداری.',
+    INVALID_QUERY: 'عبارت جست‌وجو معتبر نیست.',
+    USER_NOT_FOUND: 'کاربر موردنظر پیدا نشد.',
+    ROOM_NOT_CANCELLABLE: 'فقط اتاق تستی که هنوز شروع نشده قابل لغو است.',
   }
   return messages[code] || 'ارتباط با بازی کامل نشد. دوباره تلاش کن.'
 }
@@ -163,6 +205,7 @@ const knownErrorCodes = [
   'NIGHT_ACTION_NOT_ALLOWED', 'PRIVATE_CHANNEL_FORBIDDEN', 'ROLE_NOT_READY', 'INVALID_GAME', 'INVALID_CAPACITY', 'INVALID_MOVE', 'CELL_OCCUPIED', 'CONFLICT',
   'GAME_NOT_ACTIVE', 'SESSION_NOT_FOUND', 'INVALID_CHOICE', 'CHOICE_ALREADY_MADE', 'CARD_NOT_REVEALED', 'CHAT_LIMIT_REACHED',
   'CHAT_CLOSED', 'INVALID_MESSAGE', 'INVALID_REACTION', 'MESSAGE_NOT_FOUND', 'SUPABASE_NOT_CONFIGURED',
+  'NOT_ADMIN', 'INVALID_QUERY', 'USER_NOT_FOUND', 'ROOM_NOT_CANCELLABLE',
 ]
 
 const throwIfError = (error: { message?: string } | null) => {
@@ -294,6 +337,14 @@ export async function loadOnlineSessionMessages(roomId: string, sessionId: strin
 }
 
 export const loadOnlineTruthDareMessages = loadOnlineSessionMessages
+
+export async function loadAdminSession() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_session'); throwIfError(error); return data as AdminSession }
+export async function loadAdminDashboard() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_dashboard'); throwIfError(error); return data as AdminDashboard }
+export async function loadAdminUsers(query = '', limit = 25, offset = 0) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_users', { p_query: query || null, p_limit: limit, p_offset: offset }); throwIfError(error); return data as AdminUserList }
+export async function loadAdminUserDetail(userId: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_user_detail', { p_user_id: userId }); throwIfError(error); return data as AdminUserDetail }
+export async function createAdminTestRoom(input: { gameType: PartyPlayGameType; name?: string; capacity: number }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_create_test_room', { p_game_type: input.gameType, p_name: input.name || null, p_capacity: input.capacity }); throwIfError(error); return data as AdminTestRoom }
+export async function loadAdminTestRooms() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_list_test_rooms'); throwIfError(error); return (data || []) as AdminTestRoom[] }
+export async function cancelAdminTestRoom(roomId: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_cancel_test_room', { p_room_id: roomId }); throwIfError(error); return data as { id: string; status: 'cancelled' } }
 
 export async function loadOnlineMafiaPrivateView(sessionId: string) {
   const client = requireClient()

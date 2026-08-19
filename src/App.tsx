@@ -7,6 +7,7 @@ import {
 import './App.css'
 import './mafia.css'
 import './arcade.css'
+import './admin.css'
 import AppShell from './app/AppShell'
 import { type AppLanguage, useLanguage } from './i18n'
 import OnlineTicTacToe from './components/OnlineTicTacToe'
@@ -15,6 +16,7 @@ import OnlineTruthDare from './components/OnlineTruthDare'
 import OnlineTruthDareRoom, { TruthDareRoomSetup } from './components/OnlineTruthDareRoom'
 import OnlineMafiaRoom, { MafiaRoomSetup } from './components/OnlineMafiaRoom'
 import OnlineMafia from './components/OnlineMafia'
+import AdminConsole from './components/AdminConsole'
 import OnlineFullGameRoom, { FullGameSetup } from './components/OnlineFullGameRoom'
 import OnlineFullGame from './components/OnlineFullGame'
 import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
@@ -37,9 +39,9 @@ import RealBackgammon from './components/RealBackgammon'
 import RealHokm from './components/RealHokm'
 import RealFreecell from './components/RealFreecell'
 import { gameById, publicGameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
-import type { FullPartyPlayGameType } from './lib/partyplay'
+import type { AdminTestRoom, FullPartyPlayGameType } from './lib/partyplay'
 
-type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
+type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'admin' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
 type ThemePreference = 'system' | 'light' | 'dark'
 type GameId = PartyGameId
 type PracticePhase = 'setup' | 'playing' | 'finished'
@@ -70,7 +72,7 @@ const initial = (name?: string) => (name || 'ب').trim().charAt(0) || 'ب'
 
 function App() {
   const { language, t } = useLanguage()
-  const [page, setPage] = useState<Page>('home')
+  const [page, setPage] = useState<Page>(() => new URLSearchParams(window.location.search).get('view') === 'admin' ? 'admin' : 'home')
   const [themePreference, setThemePreference] = useState<ThemePreference>(() => (localStorage.getItem('partyplay-theme') as ThemePreference) || 'system')
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [selectedGame, setSelectedGame] = useState<GameId>('tic-tac-toe')
@@ -86,7 +88,7 @@ function App() {
   const [mafiaRole, setMafiaRole] = useState('')
   const [mafiaVote, setMafiaVote] = useState<string | null>(null)
   const { profile, groups, friends, requests, loading, refresh, updateProfile, lookupProfile, sendFriendRequest, respondToRequest, removeFriend, createGroup, addGroupMember, updateGroupIdentity } = usePartyPlayData()
-  const { room: onlineRoom, currentUserId: onlineUserId, pending: onlinePending, createRoom: createOnlineRoom, joinRoom: joinOnlineRoom, start: startOnlineRoom, move: makeOnlineMove } = useOnlineTicTacToe()
+  const { room: onlineRoom, currentUserId: onlineUserId, pending: onlinePending, createRoom: createOnlineRoom, joinRoom: joinOnlineRoom, start: startOnlineRoom, move: makeOnlineMove, refreshRoom: refreshOnlineTicTacToe } = useOnlineTicTacToe()
   const truthDare = useOnlineTruthDare()
   const mafia = useOnlineMafia()
   const fullGame = useOnlineFullGame()
@@ -228,6 +230,31 @@ function App() {
       setToast('لابی مافیا آماده شد؛ لینک دعوت را برای بازیکن‌ها بفرست.')
     }).catch(showOnlineError)
   }
+  const openAdminRoom = (room: AdminTestRoom) => {
+    if (room.game_type === 'mafia') {
+      setSelectedGame('mafia')
+      void mafia.refreshRoom(room.id).then(() => setPage('mafia-room')).catch(showOnlineError)
+      return
+    }
+    if (room.game_type === 'tic_tac_toe') {
+      setSelectedGame('tic-tac-toe')
+      void refreshOnlineTicTacToe(room.id).then(() => setPage('room')).catch(showOnlineError)
+      return
+    }
+    const gameId = fullGameIdByRoomType[room.game_type as FullPartyPlayGameType]
+    if (gameId) {
+      setSelectedGame(gameId)
+      void fullGame.refreshRoom(room.id).then(() => setPage('full-game-room')).catch(showOnlineError)
+      return
+    }
+    setToast('این اتاق هنوز رابط سازگار ندارد.')
+  }
+  const closeAdminConsole = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('view')
+    window.history.replaceState({}, '', url)
+    setPage('home')
+  }
   const drawCard = (mode: 'truth' | 'dare') => {
     setTruthMode(mode)
     if (mode === 'truth') setTruthCursor((cursor) => cursor + 1 < truthOrder.length ? cursor + 1 : 0)
@@ -244,6 +271,7 @@ function App() {
   }
 
   const renderPage = () => {
+    if (page === 'admin') return <AdminConsole onBack={closeAdminConsole} onOpenPractice={startPractice} onEnterRoom={openAdminRoom} notify={setToast}/>
     if (page === 'games') return <GamesPage onBack={() => setPage('home')} onPractice={startPractice} onFriendsGame={openFriendsGame} onOnlineTicTacToe={createOnlineTicTacToe} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
     if (page === 'arcade-game') return <OpenSourceArcade game={activeGame} onBack={() => setPage('games')}/>
     if (page === 'full-game-setup') return <FullGameSetup game={activeGame} pending={fullGame.pending} error={fullGame.error} onCreate={createOnlineFullGame} onBack={() => setPage('games')}/>
@@ -277,7 +305,8 @@ function App() {
       : page === 'friends' ? t.app.friends
         : page === 'groups' ? t.app.groups
           : page === 'profile' ? t.app.profile
-            : page === 'room' ? t.app.room
+            : page === 'admin' ? (language === 'fa' ? 'مدیریت' : 'Admin')
+              : page === 'room' ? t.app.room
               : page === 'game' || page === 'arcade-game' ? activeGame.title
                 : page.startsWith('mafia') ? 'مافیا'
                   : t.app.game
