@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import {
-  ArrowLeft, Check, ChevronLeft, Gamepad2, Grid2X2,
-  Home, Link2, Menu, Moon, MoonStar, Play, Plus, Settings2, Sparkles, Sun,
+  ArrowLeft, Check, ChevronLeft, Grid2X2,
+  Link2, MoonStar, Play, Plus, Sparkles,
   UserPlus, Users, X, Zap,
 } from 'lucide-react'
 import './App.css'
 import './mafia.css'
 import './arcade.css'
-import AuthGate from './components/AuthGate'
+import AppShell from './app/AppShell'
+import { type AppLanguage, useLanguage } from './i18n'
 import OnlineTicTacToe from './components/OnlineTicTacToe'
 import OnlineTicTacToeRoom from './components/OnlineTicTacToeRoom'
 import OnlineTruthDare from './components/OnlineTruthDare'
@@ -21,7 +22,7 @@ import { useOnlineTruthDare } from './hooks/useOnlineTruthDare'
 import { useOnlineMafia } from './hooks/useOnlineMafia'
 import { useOnlineFullGame } from './hooks/useOnlineFullGame'
 import { usePartyPlayData } from './hooks/usePartyPlayData'
-import { sessionMedals, useSessionPlayProgress, type SessionMedal } from './hooks/useSessionPlayProgress'
+import { useSessionPlayProgress, type SessionMedal } from './hooks/useSessionPlayProgress'
 import { dareCards, shuffledIndexes, truthCards } from './data/truthDareCards'
 import { GroupBadge, PlayerAvatar } from './components/SocialIdentity'
 import { ProfileSettingsPage, SocialFriendsPage, SocialGroupsPage } from './components/SocialPages'
@@ -34,7 +35,7 @@ import RealUno from './components/RealUno'
 import RealSpyfall from './components/RealSpyfall'
 import RealCodenames from './components/RealCodenames'
 import RealBackgammon from './components/RealBackgammon'
-import { gameById, gameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
+import { gameById, publicGameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
 import type { FullPartyPlayGameType } from './lib/partyplay'
 
 type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
@@ -42,7 +43,24 @@ type ThemePreference = 'system' | 'light' | 'dark'
 type GameId = PartyGameId
 type PracticePhase = 'setup' | 'playing' | 'finished'
 
-const games: GameDefinition[] = gameCatalog
+const games: GameDefinition[] = publicGameCatalog
+
+const englishGameCopy: Record<PartyGameId, Pick<GameDefinition, 'title' | 'subtitle' | 'players' | 'duration' | 'tone'>> = {
+  mafia: { title: 'Mafia', subtitle: 'Take a role, investigate, vote', players: '5, 7, or 9 players', duration: '15–30 min', tone: 'Hidden roles' },
+  'tic-tac-toe': { title: 'Tic-Tac-Toe', subtitle: 'Line up three marks', players: '2 players', duration: '1–3 min', tone: 'Quick match' },
+  'truth-dare': { title: 'Truth or Dare', subtitle: 'Paused for content review', players: '2–8 players', duration: 'Open-ended', tone: 'Content review' },
+  snakes: { title: 'Snakes & Ladders', subtitle: 'A professional replacement is in progress', players: '2–8 players', duration: '8–15 min', tone: 'Being upgraded' },
+  spyfall: { title: 'Spyfall', subtitle: 'Find the location without exposing yourself', players: '3–8 players', duration: '8–12 min', tone: 'Hidden roles' },
+  uno: { title: 'UNO', subtitle: 'Play the right color and number', players: '2–4 players', duration: '6–15 min', tone: 'Cards & competition' },
+  pictionary: { title: 'Draw & Guess', subtitle: 'A complete online source is being reviewed', players: '3–8 players', duration: '10–20 min', tone: 'Under research' },
+  'connect-four': { title: 'Connect Four', subtitle: 'Removed from PartyPlay Arcade', players: '2 players', duration: '3–7 min', tone: 'Removed' },
+  backgammon: { title: 'Backgammon', subtitle: 'Roll dice and bear your pieces home', players: '2 players', duration: '15–30 min', tone: 'Classic & tactical' },
+  ludo: { title: 'Ludo', subtitle: 'Race every piece around the board', players: '2–4 players', duration: '10–25 min', tone: 'Luck & competition' },
+  codenames: { title: 'Codenames', subtitle: 'Lead your team with one clue', players: '4–8 players', duration: '10–20 min', tone: 'Teams & words' },
+  hokm: { title: 'Hokm', subtitle: 'A professional browser-ready source is being reviewed', players: '4 players', duration: '15–30 min', tone: 'Under research' },
+}
+
+const localizeGame = (game: GameDefinition, language: AppLanguage) => language === 'en' ? { ...game, ...englishGameCopy[game.id] } : game
 const fullGameIdByRoomType: Record<FullPartyPlayGameType, PartyGameId> = { spyfall: 'spyfall', uno: 'uno', pictionary: 'pictionary', connect_four: 'connect-four', backgammon: 'backgammon', ludo: 'ludo', codenames: 'codenames', hokm: 'hokm', snakes_ladders: 'snakes' }
 const fullRoomTypeByGameId: Partial<Record<PartyGameId, FullPartyPlayGameType>> = Object.fromEntries(Object.entries(fullGameIdByRoomType).map(([roomType, gameId]) => [gameId, roomType as FullPartyPlayGameType]))
 
@@ -50,10 +68,10 @@ const avatar = (label: string, tone = 'violet', extra = '') => <span className={
 const initial = (name?: string) => (name || 'ب').trim().charAt(0) || 'ب'
 
 function App() {
+  const { language, t } = useLanguage()
   const [page, setPage] = useState<Page>('home')
   const [themePreference, setThemePreference] = useState<ThemePreference>(() => (localStorage.getItem('partyplay-theme') as ThemePreference) || 'system')
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedGame, setSelectedGame] = useState<GameId>('tic-tac-toe')
   const [toast, setToast] = useState('')
   const [nameDraft, setNameDraft] = useState('')
@@ -73,7 +91,7 @@ function App() {
   const fullGame = useOnlineFullGame()
   const sessionProgress = useSessionPlayProgress()
 
-  const activeGame = gameById(selectedGame)
+  const activeGame = localizeGame(gameById(selectedGame), language)
   const currentTheme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
   const playerName = profile?.displayName || localStorage.getItem('partyplay-display-name') || 'بازیکن جدید'
   const playerAvatarSeed = profile?.avatarSeed || 'mint'
@@ -141,6 +159,12 @@ function App() {
     setMafiaVote(null)
   }
   const startPractice = (game: GameId) => {
+    const definition = gameById(game)
+    if (definition.availability !== 'published') {
+      setToast('این بازی فعلاً در آرکید قابل شروع نیست.')
+      setPage('games')
+      return
+    }
     sessionProgress.markStarted(game)
     if (game === 'snakes' || game === 'ludo' || game === 'connect-four' || game === 'uno' || game === 'spyfall' || game === 'codenames' || game === 'backgammon') {
       setSelectedGame(game)
@@ -160,6 +184,10 @@ function App() {
     setToast(game === 'tic-tac-toe' ? 'تمرین دوز با ربات شروع شد.' : `${gameById(game).title} آماده است؛ شروع کن.`)
   }
   const openFriendsGame = (game: GameId) => {
+    if (gameById(game).availability !== 'published') {
+      setToast('این بازی تا تکمیل بررسی کیفیت، اتاق جدید نمی‌سازد.')
+      return
+    }
     setSelectedGame(game)
     if (game === 'tic-tac-toe') { createOnlineTicTacToe(); return }
     if (game === 'truth-dare') { setPage('truth-setup'); return }
@@ -215,7 +243,7 @@ function App() {
   }
 
   const renderPage = () => {
-    if (page === 'games') return <GamesPage onBack={() => setPage('home')} onPractice={startPractice} onFriendsGame={openFriendsGame} onOnlineTicTacToe={createOnlineTicTacToe} onOnlineTruthDare={() => setPage('truth-setup')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
+    if (page === 'games') return <GamesPage onBack={() => setPage('home')} onPractice={startPractice} onFriendsGame={openFriendsGame} onOnlineTicTacToe={createOnlineTicTacToe} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
     if (page === 'arcade-game') return <OpenSourceArcade game={activeGame} onBack={() => setPage('games')}/>
     if (page === 'full-game-setup') return <FullGameSetup game={activeGame} pending={fullGame.pending} error={fullGame.error} onCreate={createOnlineFullGame} onBack={() => setPage('games')}/>
     if (page === 'full-game-room' && fullGame.room) return <OnlineFullGameRoom game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} error={fullGame.error} onStart={() => void fullGame.start().then(() => setPage('full-game')).catch(showOnlineError)} onBack={() => setPage('games')}/>
@@ -242,37 +270,23 @@ function App() {
     return <HomePage name={playerName} avatarSeed={playerAvatarSeed} groups={groups} friends={friends} loading={loading} onPractice={startPractice} onFriendsGame={openFriendsGame} onCreateOnline={createOnlineTicTacToe} onOnlineMafia={() => setPage('mafia-setup')} onGames={() => setPage('games')} onGroups={() => setPage('groups')} onFriends={() => setPage('friends')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
   }
 
-  const navItems: Array<{ id: Page; label: string; icon: typeof Home }> = [
-    { id: 'home', label: 'خانه', icon: Home }, { id: 'games', label: 'بازی‌ها', icon: Gamepad2 }, { id: 'friends', label: 'دوستان', icon: Users }, { id: 'groups', label: 'گروه‌ها', icon: Users },
-  ]
+  const pageTitle = page === 'home' ? t.app.home
+    : page === 'games' ? t.app.games
+      : page === 'friends' ? t.app.friends
+        : page === 'groups' ? t.app.groups
+          : page === 'profile' ? t.app.profile
+            : page === 'room' ? t.app.room
+              : page === 'game' || page === 'arcade-game' ? activeGame.title
+                : page.startsWith('mafia') ? 'مافیا'
+                  : t.app.game
 
-  return <AuthGate theme={currentTheme}>
-    <div className="app-shell" data-theme={currentTheme} dir="rtl">
-      <div className="ambient ambient-one" /><div className="ambient ambient-two" />
-      <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
-        <button className="brand" onClick={() => { setPage('home'); setMobileMenuOpen(false) }} aria-label="خانهٔ پارتی پلی"><span className="brand-mark"><span>◈</span><i/><i/><i/><i/></span><span className="brand-text">پارتی <span>پلی</span></span></button>
-        <div className="nav-section"><p className="nav-caption">فضای بازی</p>{navItems.map(({ id, label, icon: Icon }) => <button key={id} className={`nav-item ${page === id ? 'nav-active' : ''}`} onClick={() => { setPage(id); setMobileMenuOpen(false) }}><Icon size={20}/><span>{label}</span></button>)}</div>
-        <div className="sidebar-spacer" />
-        <button className={`nav-item profile-nav ${page === 'profile' ? 'nav-active' : ''}`} onClick={() => setPage('profile')}><PlayerAvatar seed={playerAvatarSeed} label={playerName} size="sm" status={profile?.presence}/><span>{playerName}</span><Settings2 size={18}/></button>
-      </aside>
-      <main className="main-content">
-        <header className="topbar"><button className="mobile-menu-button icon-button" onClick={() => setMobileMenuOpen((open) => !open)} aria-label="باز کردن منو"><Menu size={22}/></button><div className="breadcrumb"><span>پارتی پلی</span><ChevronLeft size={16}/><strong>{page === 'home' ? 'خانه' : page === 'game' || page === 'arcade-game' ? activeGame.title : page === 'room' ? 'لابی دوز' : page === 'truth-setup' ? 'اتاق جرئت‌وحقیقت' : page === 'truth-room' ? 'لابی جرئت‌وحقیقت' : page === 'truth-game' ? 'جرئت‌وحقیقت آنلاین' : page === 'mafia-setup' ? 'ساخت اتاق مافیا' : page === 'mafia-room' ? 'لابی مافیا' : page === 'mafia-game' ? 'مافیا آنلاین' : page === 'profile' ? 'پروفایل' : page === 'groups' ? 'گروه‌ها' : page === 'friends' ? 'دوستان' : 'بازی‌ها'}</strong></div><div className="top-actions"><button className="theme-toggle icon-button" onClick={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} aria-label="تغییر تم">{currentTheme === 'dark' ? <Sun size={19}/> : <Moon size={19}/>}</button><button className="top-avatar" onClick={() => setPage('profile')}><PlayerAvatar seed={playerAvatarSeed} label={playerName} size="sm" status={profile?.presence}/></button></div></header>
-        <div className="page-container">{renderPage()}</div>
-      </main>
-      {profile?.displayName === 'بازیکن جدید' && !localStorage.getItem('partyplay-display-name') && <div className="identity-backdrop" role="presentation"><section className="identity-dialog" role="dialog" aria-modal="true" aria-label="انتخاب نام نمایشی"><span className="eyebrow"><Sparkles size={15}/> خوش اومدی</span><h2>دوستات با چه اسمی صدات کنن؟</h2><p>این نام در اتاق‌ها، دعوت‌ها و نتیجهٔ بازی نشان داده می‌شود؛ بعداً هم قابل تغییر است.</p><input className="text-field" autoFocus value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="مثلاً کیان" maxLength={40}/><button className="primary-button full-button" onClick={saveDisplayName} disabled={nameDraft.trim().length < 1}>ادامه با این نام</button></section></div>}
-      {sessionProgress.newMedal && <MedalCelebration medal={sessionProgress.newMedal} onDismiss={sessionProgress.dismissMedal}/>} 
-      {toast && <div className="toast"><Check size={18}/><span>{toast}</span><button onClick={() => setToast('')}><X size={16}/></button></div>}
-    </div>
-  </AuthGate>
-}
+  const overlay = <>
+    {profile?.displayName === 'بازیکن جدید' && !localStorage.getItem('partyplay-display-name') && <div className="identity-backdrop" role="presentation"><section className="identity-dialog" role="dialog" aria-modal="true" aria-label="انتخاب نام نمایشی"><span className="eyebrow"><Sparkles size={15}/> خوش اومدی</span><h2>دوستات با چه اسمی صدات کنن؟</h2><p>این نام در اتاق‌ها، دعوت‌ها و نتیجهٔ بازی نشان داده می‌شود؛ بعداً هم قابل تغییر است.</p><input className="text-field" autoFocus value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="مثلاً کیان" maxLength={40}/><button className="primary-button full-button" onClick={saveDisplayName} disabled={nameDraft.trim().length < 1}>ادامه با این نام</button></section></div>}
+    {sessionProgress.newMedal && <MedalCelebration medal={sessionProgress.newMedal} onDismiss={sessionProgress.dismissMedal}/>}
+    {toast && <div className="toast"><Check size={18}/><span>{toast}</span><button onClick={() => setToast('')}><X size={16}/></button></div>}
+  </>
 
-function SessionProgress({ started, earnedMedals }: { started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) {
-  const triedCount = Object.values(started).filter(Boolean).length
-  return <section className="session-progress panel"><div className="session-progress-head"><div><span className="eyebrow"><Sparkles size={15}/> پیشرفت این نشست</span><h2>{triedCount ? `${triedCount} بازی را شروع کردی` : 'یک بازی انتخاب کن و اولین مدالت را بگیر'}</h2></div><span className="session-count">{earnedMedals.length}/۴</span></div><div className="session-game-track">{sessionMedals.map((medal) => { const game = gameById(medal.game); const earned = earnedMedals.some((item) => item.id === medal.id); return <div className={`session-game-step accent-${game.accent} ${started[game.id] ? 'step-started' : ''} ${earned ? 'step-earned' : ''}`} key={game.id}><span className="step-orb">{earned ? <Check size={15}/> : game.art}</span><span><b>{game.title}</b><small>{earned ? medal.title : started[game.id] ? 'در حال بازی' : 'شروع نشده'}</small></span></div> })}</div><MedalShelf earnedMedals={earnedMedals}/></section>
-}
-
-function MedalShelf({ earnedMedals, compact = false }: { earnedMedals: SessionMedal[]; compact?: boolean }) {
-  return <div className={`medal-shelf ${compact ? 'medal-shelf-compact' : ''}`}>{sessionMedals.map((medal) => { const earned = earnedMedals.some((item) => item.id === medal.id); return <div className={`medal-token medal-${medal.accent} ${earned ? 'medal-earned' : ''}`} key={medal.id} title={earned ? medal.description : 'با انجام اولین حرکت این بازی باز می‌شود'}><span>{earned ? medal.icon : '◇'}</span><div><b>{medal.title}</b><small>{earned ? 'باز شد' : 'قفل است'}</small></div></div> })}</div>
+  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerPresence={profile?.presence} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}>{renderPage()}</AppShell>
 }
 
 function MedalCelebration({ medal, onDismiss }: { medal: SessionMedal; onDismiss: () => void }) {
@@ -281,22 +295,28 @@ function MedalCelebration({ medal, onDismiss }: { medal: SessionMedal; onDismiss
 }
 
 function HomePage({ name, avatarSeed, groups, friends, loading, onPractice, onFriendsGame, onCreateOnline, onOnlineMafia, onGames, onGroups, onFriends, started, earnedMedals }: { name: string; avatarSeed: string; groups: ReturnType<typeof usePartyPlayData>['groups']; friends: ReturnType<typeof usePartyPlayData>['friends']; loading: boolean; onPractice: (game: GameId) => void; onFriendsGame: (game: GameId) => void; onCreateOnline: () => void; onOnlineMafia: () => void; onGames: () => void; onGroups: () => void; onFriends: () => void; started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) {
+  const { language, t, format } = useLanguage()
+  const isFa = language === 'fa'
+  const localizedGames = games.map((game) => localizeGame(game, language))
+  const presenceLabel = (presence: 'online' | 'away' | 'busy' | 'offline') => {
+    if (isFa) return presence === 'online' ? 'آنلاین' : presence === 'away' ? 'دور از دسترس' : presence === 'busy' ? 'مشغول' : 'آفلاین'
+    return presence === 'online' ? 'Online' : presence === 'away' ? 'Away' : presence === 'busy' ? 'Busy' : 'Offline'
+  }
+
   return <>
-    <section className="welcome-row"><div><span className="eyebrow"><Sparkles size={15}/> حساب تو</span><h1>سلام {name}، <span>بازی رو شروع کنیم؟</span></h1><p>برای یک جمع واقعی، اتاق خصوصی مافیا بساز یا از بین بازی‌ها انتخاب کن.</p></div><button className="primary-button create-button" onClick={onOnlineMafia}><MoonStar size={19}/>اتاق مافیا</button></section>
-    <section className="quick-play"><div className="quick-content"><div className="quick-copy"><span className="pill"><MoonStar size={14}/> نقش مخفی و دورهمی</span><h2>شهر را برای مافیا جمع کن.</h2><p>یک اتاق ۵، ۷ یا ۹ نفره بساز؛ سایت نقش‌ها، نوبت‌ها و روایت شب و روز را مدیریت می‌کند.</p><div className="quick-actions"><button className="quick-primary" onClick={onOnlineMafia}><MoonStar size={17}/>ساخت اتاق مافیا</button><button className="quick-secondary" onClick={onGames}><Link2 size={18}/>دیدن همهٔ بازی‌ها</button></div></div><div className="quick-orbit"><span className="orbit-token token-x">✕</span><span className="orbit-token token-o">○</span><span className="orbit-token token-dice">⚄</span><div className="quick-badge"><PlayerAvatar seed={avatarSeed} label={name} size="sm"/><strong>آماده‌ای</strong><span>یک بازی انتخاب کن</span></div></div></div>
-    </section>
-    <section className="section-heading"><div><span className="eyebrow">بازی‌های قابل اجرا</span><h2>انتخاب کن و شروع کن</h2></div><button className="text-button" onClick={onGames}>دیدن همه <ArrowLeft size={16}/></button></section>
-    <section className="games-grid">{games.map((game) => <GameCard key={game.id} game={game} action="بازی با ربات" friendAction="اتاق دوستان" onPlay={() => onPractice(game.id)} onFriendPlay={() => onFriendsGame(game.id)} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)} />)}</section>
-    <SessionProgress started={started} earnedMedals={earnedMedals}/>
-    <section className="dashboard-grid"><div className="panel friends-panel"><div className="panel-heading"><div><span className="eyebrow">دوستان</span><h2>{friends.length ? 'دوستان آنلاین و آماده' : 'هنوز دوستی نداری'}</h2></div><button className="text-button" onClick={onFriends}>مدیریت <ArrowLeft size={15}/></button></div>{friends.length ? <div className="home-friend-stack">{friends.slice(0, 3).map((friend) => <button key={friend.id} className="home-friend-row" onClick={onFriends}><PlayerAvatar seed={friend.avatarSeed} label={friend.displayName} size="sm" status={friend.presence}/><span><b>{friend.displayName}</b><small dir="ltr">@{friend.username}</small></span><span className={`friend-presence presence-${friend.presence}`}>{friend.presence === 'online' ? 'آنلاین' : friend.presence === 'away' ? 'دور از دسترس' : friend.presence === 'busy' ? 'مشغول' : 'آفلاین'}</span></button>)}</div> : <div className="empty-inline"><UserPlus size={22}/><p>اولین دوستت را با شناسهٔ کاربری‌اش اضافه کن؛ بعد چالش مستقیم هم فعال می‌شود.</p><button className="text-button" onClick={onFriends}>افزودن دوست <ArrowLeft size={15}/></button></div>}</div><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">بازی آنلاین</span><h2>دوز دونفره</h2></div></div><div className="empty-inline"><Grid2X2 size={22}/><p>اتاق بساز، لینک را بفرست و بعد از ورود حریف، بازی را شروع کن.</p><button className="text-button" onClick={onCreateOnline}>ساخت اتاق <ArrowLeft size={15}/></button></div></div></section>
-    <section className="section-heading compact-heading"><div><span className="eyebrow">جمع‌های همیشگی</span><h2>گروه‌های تو</h2></div><button className="text-button" onClick={onGroups}>مدیریت گروه‌ها <ArrowLeft size={16}/></button></section>
-    {loading ? <div className="panel loading-panel">در حال خواندن داده‌های حساب…</div> : groups.length ? <section className="groups-strip">{groups.map((group) => <button className="group-card group-violet" key={group.id} onClick={onGroups}><GroupBadge seed={group.avatarSeed}/><span><strong>{group.name}</strong><small>{group.memberCount} عضو</small></span><ChevronLeft size={18}/></button>)}<button className="group-add" onClick={onGroups}><Plus size={21}/><span>ساخت گروه</span></button></section> : <button className="empty-group-cta" onClick={onGroups}><span><Plus size={22}/></span><strong>هنوز گروهی نساختی</strong><small>برای دورهمی‌های همیشگی یک گروه واقعی بساز</small></button>}
+    <section className="welcome-row"><div><span className="eyebrow"><Sparkles size={15}/> {isFa ? 'حساب تو' : 'YOUR SPACE'}</span><h1>{format(t.home.greeting, { name })}, <span>{t.home.headline}</span></h1><p>{t.home.description}</p></div><button className="primary-button create-button" onClick={onOnlineMafia}><MoonStar size={19}/>{t.home.mafiaRoom}</button></section>
+    <section className="quick-play"><div className="quick-content"><div className="quick-copy"><span className="pill"><MoonStar size={14}/> {isFa ? 'نقش مخفی و دورهمی' : 'HIDDEN ROLES · GROUP PLAY'}</span><h2>{isFa ? 'شهر را برای مافیا جمع کن.' : 'Gather the town for Mafia.'}</h2><p>{isFa ? 'یک اتاق ۵، ۷ یا ۹ نفره بساز؛ سایت نقش‌ها، نوبت‌ها و روایت شب و روز را مدیریت می‌کند.' : 'Create a private room for 5, 7, or 9 players. PartyPlay manages roles, turns, and the night-and-day flow.'}</p><div className="quick-actions"><button className="quick-primary" onClick={onOnlineMafia}><MoonStar size={17}/>{t.home.mafiaRoom}</button><button className="quick-secondary" onClick={onGames}><Link2 size={18}/>{t.home.viewAll}</button></div></div><div className="quick-orbit"><span className="orbit-token token-x">✕</span><span className="orbit-token token-o">○</span><span className="orbit-token token-dice">⚄</span><div className="quick-badge"><PlayerAvatar seed={avatarSeed} label={name} size="sm"/><strong>{isFa ? 'آماده‌ای' : 'You are ready'}</strong><span>{isFa ? 'یک بازی انتخاب کن' : 'Choose a game'}</span></div></div></div></section>
+    <section className="section-heading"><div><span className="eyebrow">{t.home.availableGames}</span><h2>{t.home.chooseAndPlay}</h2></div><button className="text-button" onClick={onGames}>{t.home.viewAll} <ArrowLeft size={16}/></button></section>
+    <section className="games-grid">{localizedGames.map((game) => <GameCard key={game.id} game={game} action={t.games.playBot} friendAction={t.games.friendsRoom} onPlay={() => onPractice(game.id)} onFriendPlay={() => onFriendsGame(game.id)} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)} />)}</section>
+    <section className="dashboard-grid"><div className="panel friends-panel"><div className="panel-heading"><div><span className="eyebrow">{t.home.friends}</span><h2>{friends.length ? (isFa ? 'دوستان آمادهٔ بازی' : 'Friends ready to play') : t.home.noFriends}</h2></div><button className="text-button" onClick={onFriends}>{t.home.manage} <ArrowLeft size={15}/></button></div>{friends.length ? <div className="home-friend-stack">{friends.slice(0, 3).map((friend) => <button key={friend.id} className="home-friend-row" onClick={onFriends}><PlayerAvatar seed={friend.avatarSeed} label={friend.displayName} size="sm" status={friend.presence}/><span><b>{friend.displayName}</b><small dir="ltr">@{friend.username}</small></span><span className={`friend-presence presence-${friend.presence}`}>{presenceLabel(friend.presence)}</span></button>)}</div> : <div className="empty-inline"><UserPlus size={22}/><p>{t.empty.friends}</p><button className="text-button" onClick={onFriends}>{t.home.addFriend} <ArrowLeft size={15}/></button></div>}</div><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">{t.app.onlineGame}</span><h2>{isFa ? 'دوز دونفره' : 'Two-player Tic-Tac-Toe'}</h2></div></div><div className="empty-inline"><Grid2X2 size={22}/><p>{isFa ? 'اتاق بساز، لینک را بفرست و پس از ورود حریف بازی را شروع کن.' : 'Create a room, share the link, and start once your opponent arrives.'}</p><button className="text-button" onClick={onCreateOnline}>{isFa ? 'ساخت اتاق' : 'Create room'} <ArrowLeft size={15}/></button></div></div></section>
+    <section className="section-heading compact-heading"><div><span className="eyebrow">{isFa ? 'جمع‌های همیشگی' : 'YOUR CREWS'}</span><h2>{t.home.groups}</h2></div><button className="text-button" onClick={onGroups}>{t.home.manage} <ArrowLeft size={16}/></button></section>
+    {loading ? <div className="panel loading-panel">{t.app.loading}</div> : groups.length ? <section className="groups-strip">{groups.map((group) => <button className="group-card group-violet" key={group.id} onClick={onGroups}><GroupBadge seed={group.avatarSeed}/><span><strong>{group.name}</strong><small>{group.memberCount} {isFa ? 'عضو' : 'members'}</small></span><ChevronLeft size={18}/></button>)}<button className="group-add" onClick={onGroups}><Plus size={21}/><span>{t.home.createGroup}</span></button></section> : <button className="empty-group-cta" onClick={onGroups}><span><Plus size={22}/></span><strong>{t.home.noGroups}</strong><small>{t.empty.groups}</small></button>}
   </>
 }
 
-function GameCard({ game, action, onPlay, friendAction, onFriendPlay, started = false, earned = false }: { game: GameDefinition; action: string; onPlay: () => void; friendAction?: string; onFriendPlay?: () => void; started?: boolean; earned?: boolean }) { const Icon = game.icon; return <article className={`game-card accent-${game.accent} ${earned ? 'game-experienced' : ''}`}><div className="game-card-top"><div className="game-icon"><Icon size={23}/></div><span className="game-status">{earned ? 'تجربه شد' : started ? 'در حال بازی' : 'امتحانش کن'}</span><span className="game-art">{game.art}</span></div><div className="game-card-copy"><p>{game.tone}</p><h3>{game.title}</h3><span>{game.subtitle}</span></div><div className="game-card-bottom"><div><small><Users size={14}/>{game.players}</small><small>· {game.duration}</small></div><div className="game-card-actions"><button onClick={onPlay}><Play size={16} fill="currentColor"/>{action}</button>{onFriendPlay && <button className="card-friend-button" onClick={onFriendPlay}><Link2 size={14}/>{friendAction || 'با دوستان'}</button>}</div></div></article> }
+function GameCard({ game, action, onPlay, friendAction, onFriendPlay, started = false, earned = false }: { game: GameDefinition; action: string; onPlay: () => void; friendAction?: string; onFriendPlay?: () => void; started?: boolean; earned?: boolean }) { const { language } = useLanguage(); const Icon = game.icon; const status = earned ? (language === 'fa' ? 'تجربه شد' : 'Played') : started ? (language === 'fa' ? 'در حال بازی' : 'In progress') : (language === 'fa' ? 'امتحانش کن' : 'Ready'); return <article className={`game-card accent-${game.accent} ${earned ? 'game-experienced' : ''}`}><div className="game-card-top"><div className="game-icon"><Icon size={23}/></div><span className="game-status">{status}</span><span className="game-art">{game.art}</span></div><div className="game-card-copy"><p>{game.tone}</p><h3>{game.title}</h3><span>{game.subtitle}</span></div><div className="game-card-bottom"><div><small><Users size={14}/>{game.players}</small><small>· {game.duration}</small></div><div className="game-card-actions"><button onClick={onPlay}><Play size={16} fill="currentColor"/>{action}</button>{onFriendPlay && <button className="card-friend-button" onClick={onFriendPlay}><Link2 size={14}/>{friendAction || (language === 'fa' ? 'با دوستان' : 'With friends')}</button>}</div></div></article> }
 
-function GamesPage({ onBack, onPractice, onFriendsGame, onOnlineTicTacToe, onOnlineTruthDare, started, earnedMedals }: { onBack: () => void; onPractice: (game: GameId) => void; onFriendsGame: (game: GameId) => void; onOnlineTicTacToe: () => void; onOnlineTruthDare: () => void; started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) { return <section className="sub-page"><PageTitle eyebrow="بازی کن" title="بازی رو انتخاب کن" description="تنها هستی؟ ربات را انتخاب کن. جمع داری؟ اتاق خصوصی بساز." onBack={onBack}/><div className="all-games-grid">{games.map((game) => <GameCard game={game} key={game.id} action="بازی با ربات" friendAction="اتاق دوستان" onPlay={() => onPractice(game.id)} onFriendPlay={() => onFriendsGame(game.id)} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)}/>)}</div><section className="mode-panel"><div><span className="eyebrow">دوز واقعی دونفره</span><h2>برای رقابت با دوستت، لینک اختصاصی بساز</h2></div><button className="primary-button" onClick={onOnlineTicTacToe}><Link2 size={18}/>ساخت اتاق آنلاین</button></section><section className="mode-panel truth-mode-panel"><div><span className="eyebrow">جرئت‌وحقیقت گروهی</span><h2>دوست‌ها را با لینک خصوصی وارد کن</h2></div><button className="primary-button" onClick={onOnlineTruthDare}><Sparkles size={18}/>ساخت اتاق گروهی</button></section></section> }
+function GamesPage({ onBack, onPractice, onFriendsGame, onOnlineTicTacToe, started, earnedMedals }: { onBack: () => void; onPractice: (game: GameId) => void; onFriendsGame: (game: GameId) => void; onOnlineTicTacToe: () => void; started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) { const { language, t } = useLanguage(); const isFa = language === 'fa'; const localizedGames = games.map((game) => localizeGame(game, language)); return <section className="sub-page"><PageTitle eyebrow={isFa ? 'بازی کن' : 'PLAY'} title={t.games.title} description={t.games.description} onBack={onBack}/><div className="all-games-grid">{localizedGames.map((game) => <GameCard game={game} key={game.id} action={t.games.playBot} friendAction={t.games.friendsRoom} onPlay={() => onPractice(game.id)} onFriendPlay={() => onFriendsGame(game.id)} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)}/>)}</div><section className="mode-panel"><div><span className="eyebrow">{isFa ? 'دوز واقعی دونفره' : 'REAL TWO-PLAYER MATCH'}</span><h2>{isFa ? 'برای رقابت با دوستت، لینک اختصاصی بساز' : 'Create a private link and challenge a friend.'}</h2></div><button className="primary-button" onClick={onOnlineTicTacToe}><Link2 size={18}/>{isFa ? 'ساخت اتاق آنلاین' : 'Create online room'}</button></section></section> }
 
 function GamePage({ game, onlineRoom, onlineUserId, onlinePending, onOnlineMove, onRestart, truthMode, truthIndex, truthDone, onDraw, onTruthDone, mafiaPhase, mafiaRole, mafiaVote, onBeginMafia, onVote, onBack }: { game: GameDefinition; onlineRoom: ReturnType<typeof useOnlineTicTacToe>['room']; onlineUserId: string | null; onlinePending: boolean; onOnlineMove: (index: number) => void; onRestart: () => void; truthMode: 'truth'|'dare'; truthIndex: number; truthDone: number; onDraw: (mode: 'truth'|'dare') => void; onTruthDone: () => void; mafiaPhase: PracticePhase; mafiaRole: string; mafiaVote: string | null; onBeginMafia: () => void; onVote: (name: string) => void; onBack: () => void }) {
   const Icon = game.icon
