@@ -24,8 +24,8 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
   const [error, setError] = useState('')
   const BackIcon = language === 'fa' ? ArrowRight : ArrowLeft
   const gamePreview = language === 'fa'
-    ? ['مافیا', 'جاسوس', 'اونو', 'تخته‌نرد', 'منچ', 'رمز', 'دوز']
-    : ['Mafia', 'Spyfall', 'UNO', 'Backgammon', 'Ludo', 'Codenames', 'Tic-Tac-Toe']
+    ? ['مافیا', 'جاسوس', 'اونو', 'تخته‌نرد', 'منچ', 'رمز', 'دوز', 'حکم', 'فری‌سل']
+    : ['Mafia', 'Spyfall', 'UNO', 'Backgammon', 'Ludo', 'Codenames', 'Tic-Tac-Toe', 'Hokm', 'FreeCell']
 
   useEffect(() => {
     if (!supabase) return
