@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PartyGameId } from '../data/gameCatalog'
 
 export type SessionGameId = PartyGameId
-export type MedalId = 'first_move' | 'card_spark' | 'dice_runner' | 'night_detective'
+export type MedalId = 'first_move' | 'card_spark' | 'night_detective'
 
 export type SessionMedal = {
   id: MedalId
@@ -23,7 +23,6 @@ const STORAGE_KEY = 'partyplay-session-progress-v1'
 export const sessionMedals: SessionMedal[] = [
   { id: 'first_move', game: 'tic-tac-toe', title: 'حرکت اول', description: 'اولین مهرهٔ دوز را گذاشتی.', icon: '✕', accent: 'cyan' },
   { id: 'card_spark', game: 'truth-dare', title: 'جادوی کارت', description: 'اولین کارت را انجام دادی.', icon: '✦', accent: 'gold' },
-  { id: 'dice_runner', game: 'snakes', title: 'تاس‌گردان', description: 'اولین تاس مارپله را انداختی.', icon: '⚄', accent: 'lime' },
   { id: 'night_detective', game: 'mafia', title: 'کارآگاه شب', description: 'اولین رأی مافیایی‌ات را ثبت کردی.', icon: '◈', accent: 'pink' },
 ]
 
