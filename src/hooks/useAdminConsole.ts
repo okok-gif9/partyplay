@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   adminModerateAccount,
+  adminSetMembership,
   cancelAdminTestRoom,
   createAdminTestRoom,
   loadAdminDashboard,
@@ -10,6 +11,7 @@ import {
   loadAdminUsers,
   type AccountModerationAction,
   type AdminDashboard,
+  type AdminMembershipInput,
   type AdminSession,
   type AdminTestRoom,
   type AdminUserDetail,
@@ -104,6 +106,23 @@ export function useAdminConsole() {
     }
   }, [])
 
+  const setMembership = useCallback(async (input: AdminMembershipInput) => {
+    setBusy(true)
+    try {
+      await adminSetMembership(input)
+      const [nextDashboard, nextUsers, detail] = await Promise.all([
+        loadAdminDashboard(),
+        loadAdminUsers('', 25, 0),
+        loadAdminUserDetail(input.userId),
+      ])
+      setDashboard(nextDashboard)
+      setUsers(nextUsers)
+      return detail
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
   const createTestRoom = useCallback(async (input: { gameType: PartyPlayGameType; name?: string; capacity: number }) => {
     setBusy(true)
     try {
@@ -129,5 +148,5 @@ export function useAdminConsole() {
     }
   }, [])
 
-  return { session, dashboard, users, testRooms, loading, busy, error, refresh, searchUsers, loadUser, moderateAccount, createTestRoom, cancelTestRoom }
+  return { session, dashboard, users, testRooms, loading, busy, error, refresh, searchUsers, loadUser, moderateAccount, setMembership, createTestRoom, cancelTestRoom }
 }

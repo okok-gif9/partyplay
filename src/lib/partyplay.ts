@@ -107,7 +107,7 @@ export type MafiaPrivateView = {
 
 export type AdminSession = {
   is_admin: true
-  profile: { id: string; display_name: string; username: string; avatar_seed: string }
+  profile: { id: string; display_name: string; username: string; avatar_seed: string; site_role: 'site_admin'; membership_tier: 'standard' | 'premium'; is_verified: boolean }
 }
 
 export type AdminDashboard = {
@@ -126,6 +126,10 @@ export type AdminUserSummary = {
   created_at: string
   room_count: number
   completed_games: number
+  membership_tier: 'standard' | 'premium'
+  premium_until: string | null
+  is_verified: boolean
+  site_role: 'member' | 'site_admin'
 }
 
 export type AdminUserList = { items: AdminUserSummary[]; total: number; limit: number; offset: number }
@@ -152,7 +156,11 @@ export type AdminUserDetail = AdminUserSummary & {
   restricted_until?: string | null
   purge_after?: string | null
   moderation_reason?: string | null
+  profile_tagline?: string
 }
+
+export type AdminMembershipInput = { userId: string; tier: 'standard' | 'premium'; durationDays?: 30 | 90 | 365 | null; reason: string }
+export type AdminMembershipResult = { membership_tier: 'standard' | 'premium'; premium_until: string | null; is_verified: boolean; site_role: 'member' | 'site_admin' }
 
 export type AdminTestRoom = {
   id: string
@@ -279,7 +287,9 @@ const knownErrorCodes = [
   'CHAT_CLOSED', 'INVALID_MESSAGE', 'INVALID_REACTION', 'MESSAGE_NOT_FOUND', 'SUPABASE_NOT_CONFIGURED',
   'NOT_ADMIN', 'INVALID_QUERY', 'USER_NOT_FOUND', 'ROOM_NOT_CANCELLABLE',
   'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
-  'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
+      'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
+    'PREMIUM_FEATURE_REQUIRED', 'INVALID_MEMBERSHIP_TIER', 'INVALID_PREMIUM_DURATION',
+
 ]
 
 const throwIfError = (error: { message?: string } | null) => {
@@ -478,6 +488,7 @@ export async function requestAccountDeletion(confirmation: string) { const clien
 export async function requireProductAccess() { const client = requireClient(); const { error } = await client.rpc('partyplay_require_product_access'); throwIfError(error) }
 export async function adminModerateAccount(input: { userId: string; action: AccountModerationAction; reason: string; durationHours?: 24 | 168 | 720 | null; confirmUsername?: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_moderate_account', { p_user_id: input.userId, p_action: input.action, p_reason: input.reason, p_duration_hours: input.durationHours ?? null, p_confirm_username: input.confirmUsername ?? null }); throwIfError(error); return data as AccountModerationResult }
 
+export async function adminSetMembership(input: AdminMembershipInput) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_set_membership', { p_user_id: input.userId, p_tier: input.tier, p_duration_days: input.durationDays ?? null, p_reason: input.reason }); throwIfError(error); return data as AdminMembershipResult }
 export async function loadAdminSession() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_session'); throwIfError(error); return data as AdminSession }
 export async function loadAdminDashboard() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_dashboard'); throwIfError(error); return data as AdminDashboard }
 export async function loadAdminUsers(query = '', limit = 25, offset = 0) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_users', { p_query: query || null, p_limit: limit, p_offset: offset }); throwIfError(error); return data as AdminUserList }

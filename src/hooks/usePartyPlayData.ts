@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { IdentityTier, SiteRole } from '../components/SocialIdentity'
 import { loadMyActiveRooms, PartyPlayError, type ActiveRoomSummary } from '../lib/partyplay'
 import { supabase } from '../lib/supabase'
 
@@ -12,9 +13,14 @@ export type CurrentProfile = {
   presence: Presence
   themePreference: 'system' | 'light' | 'dark'
   allowFriendRequests: boolean
+  membershipTier: IdentityTier
+  premiumUntil: string | null
+  isVerified: boolean
+  siteRole: SiteRole
+  profileTagline: string
 }
 
-export type SocialProfile = Pick<CurrentProfile, 'id' | 'username' | 'displayName' | 'avatarSeed' | 'presence'>
+export type SocialProfile = Pick<CurrentProfile, 'id' | 'username' | 'displayName' | 'avatarSeed' | 'presence' | 'membershipTier' | 'premiumUntil' | 'isVerified' | 'siteRole' | 'profileTagline'>
 
 export type CurrentGroupMember = SocialProfile & { role: 'owner' | 'admin' | 'member' }
 export type CurrentGroup = {
@@ -32,7 +38,7 @@ export type FriendRequest = { id: string; requester: SocialProfile; createdAt: s
 const normalizeProfile = (value: unknown): CurrentProfile => {
   const profile = value as {
     id: string; username: string; display_name: string; avatar_seed: string; presence: Presence
-    theme_preference: CurrentProfile['themePreference']; allow_friend_requests?: boolean
+    theme_preference: CurrentProfile['themePreference']; allow_friend_requests?: boolean; membership_tier?: IdentityTier; premium_until?: string | null; is_verified?: boolean; site_role?: SiteRole; profile_tagline?: string
   }
   return {
     id: profile.id,
@@ -42,12 +48,18 @@ const normalizeProfile = (value: unknown): CurrentProfile => {
     presence: profile.presence || 'online',
     themePreference: profile.theme_preference || 'system',
     allowFriendRequests: profile.allow_friend_requests !== false,
+    membershipTier: profile.membership_tier === 'premium' ? 'premium' : 'standard',
+    premiumUntil: profile.premium_until || null,
+    isVerified: profile.is_verified === true || (profile.membership_tier === 'premium' && (!profile.premium_until || new Date(profile.premium_until).getTime() > Date.now())),
+    siteRole: profile.site_role === 'site_admin' ? 'site_admin' : 'member',
+    profileTagline: profile.profile_tagline || '',
   }
 }
 
 const normalizeSocialProfile = (value: unknown): SocialProfile => {
-  const profile = value as { id: string; username: string; display_name: string; avatar_seed: string; presence: Presence }
-  return { id: profile.id, username: profile.username, displayName: profile.display_name, avatarSeed: profile.avatar_seed || 'mint', presence: profile.presence || 'offline' }
+  const profile = value as { id: string; username: string; display_name: string; avatar_seed: string; presence: Presence; membership_tier?: IdentityTier; premium_until?: string | null; is_verified?: boolean; site_role?: SiteRole; profile_tagline?: string }
+  const isVerified = profile.is_verified === true || (profile.membership_tier === 'premium' && (!profile.premium_until || new Date(profile.premium_until).getTime() > Date.now()))
+  return { id: profile.id, username: profile.username, displayName: profile.display_name, avatarSeed: profile.avatar_seed || 'mint', presence: profile.presence || 'offline', membershipTier: isVerified ? 'premium' : 'standard', premiumUntil: profile.premium_until || null, isVerified, siteRole: profile.site_role === 'site_admin' ? 'site_admin' : 'member', profileTagline: (isVerified || profile.site_role === 'site_admin') ? (profile.profile_tagline || '') : '' }
 }
 
 const rpc = async <T,>(name: string, args: Record<string, unknown>) => {
@@ -94,7 +106,8 @@ export function usePartyPlayData() {
         ...memberships.map((row) => row.user_id),
       ])]
       const { data: profilesData, error: profilesError } = socialIds.length
-        ? await supabase.from('pp_profiles').select('id, username, display_name, avatar_seed, presence').in('id', socialIds)
+        ? await         supabase.from('pp_profiles').select('id, username, display_name, avatar_seed, presence, membership_tier, premium_until, site_role, profile_tagline').in('id', socialIds)
+
         : { data: [], error: null }
       if (profilesError) throw new PartyPlayError(profilesError.message)
       const people = new Map((profilesData || []).map((value) => { const person = normalizeSocialProfile(value); return [person.id, person] }))
@@ -108,7 +121,7 @@ export function usePartyPlayData() {
         const groupMemberships = memberships.filter((membership) => membership.group_id === group.id)
         const members = groupMemberships.map((membership) => {
           const person = membership.user_id === authData.user.id
-            ? { id: nextProfile.id, username: nextProfile.username, displayName: nextProfile.displayName, avatarSeed: nextProfile.avatarSeed, presence: nextProfile.presence }
+            ? { id: nextProfile.id, username: nextProfile.username, displayName: nextProfile.displayName, avatarSeed: nextProfile.avatarSeed, presence: nextProfile.presence, membershipTier: nextProfile.membershipTier, premiumUntil: nextProfile.premiumUntil, isVerified: nextProfile.isVerified, siteRole: nextProfile.siteRole, profileTagline: nextProfile.profileTagline }
             : people.get(membership.user_id)
           return person ? { ...person, role: membership.role } : null
         }).filter((member): member is CurrentGroupMember => Boolean(member))
@@ -129,12 +142,13 @@ export function usePartyPlayData() {
     return () => listener.subscription.unsubscribe()
   }, [refresh])
 
-  const updateProfile = useCallback(async (updates: { displayName?: string; avatarSeed?: string; presence?: Presence; allowFriendRequests?: boolean }) => {
+  const updateProfile = useCallback(async (updates: { displayName?: string; avatarSeed?: string; presence?: Presence; allowFriendRequests?: boolean; profileTagline?: string }) => {
     const data = await rpc<unknown>('partyplay_update_profile', {
       p_display_name: updates.displayName ?? null,
       p_avatar_seed: updates.avatarSeed ?? null,
       p_presence: updates.presence ?? null,
       p_allow_friend_requests: updates.allowFriendRequests ?? null,
+      p_profile_tagline: updates.profileTagline ?? null,
     })
     const next = normalizeProfile(data)
     setProfile(next)

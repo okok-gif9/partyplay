@@ -28,3 +28,11 @@ Migration `0015_social_activity_feed.sql` از commit `a547a1250e62b1d72795b0a84
 این migration جدول `pp_activity_events`، ایندکس‌های فعالیت، RLS دریافت‌کننده، subscription Realtime، triggerهای رخدادهای درخواست دوستی/پذیرش/افزوده‌شدن به گروه و RPCهای `partyplay_activity_feed` و `partyplay_mark_activity_read` را ایجاد کرد. هیچ دادهٔ موجودی حذف نشد.
 
 پرس‌وجوی فقط‌خواندنی پس از اجرا تأیید کرد که جدول `pp_activity_events` وجود دارد، triggerهای `pp_activity_friend_request` و `pp_activity_group_member` فعال هستند، جدول در publication `supabase_realtime` قرار دارد و RPCهای `partyplay_activity_feed(integer)` و `partyplay_mark_activity_read(uuid[])` در دسترس‌اند.
+
+## آمادهٔ اجرا — آمار و دستاورد پایدار
+
+Migration `0016_player_progress_and_achievements.sql` از commit `c9bbf7fe303ef89e592771754ff37a593708c09f` در ویرایشگر Supabase بارگذاری و با SHA-256 `9d055e2b9636210723cee1a951b098967db98e72ab80175bf039932b1c8da7a8` تأیید شد. این migration در انتظار تأیید نهایی اجرای ساختاری Supabase است.
+
+## اجرای نهایی — آمار و دستاورد پایدار
+
+اجرای نخست migration `0016` به علت ارجاع به ستون ناموجود `pp_game_sessions.started_at` متوقف شد. نسخهٔ اصلاح‌شده و idempotent از commit `a7c48e5e1299191949c40d055d7e08a88aaa974c` با SHA-256 `fa2c470e2a4bf34fc74041384ab44bcde86e458260e5ff1f7fabaac9dbc16e4c` اجرا شد و Supabase نتیجهٔ `Success. No rows returned` را بازگرداند. نسخهٔ اصلاح‌شده از `created_at` جلسه برای آمار فعالیت استفاده می‌کند و سیاست RLS را پیش از ایجاد دوباره حذف می‌کند؛ هیچ داده‌ای حذف نشد.
