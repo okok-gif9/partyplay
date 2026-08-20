@@ -18,3 +18,13 @@
 ## پرس‌وجوی تأیید نهایی
 
 پرس‌وجوی فقط‌خواندنی پس از اجرای migration 0014 تأیید کرد که `pg_cron` با نسخهٔ `1.6.4` نصب است، job با نام `partyplay-purge-due-accounts` و برنامهٔ `17 3 * * *` وجود دارد، و هر دو تابع `partyplay_admin_user_detail(uuid)` و `partyplay_purge_due_accounts()` قابل فراخوانی هستند.
+
+## ۲۰ اوت ۲۰۲۶ — مرکز فعالیت اجتماعی
+
+Migration `0015_social_activity_feed.sql` از commit `a547a1250e62b1d72795b0a842849fa58e1f3ce9` با SHA-256 `0ddf1342ce59266f864929ee687a373478115c7a7be9a2cae9170a34244a5126` در SQL Editor تولید Supabase اجرا شد.
+
+نتیجهٔ Supabase: `Success. No rows returned`.
+
+این migration جدول `pp_activity_events`، ایندکس‌های فعالیت، RLS دریافت‌کننده، subscription Realtime، triggerهای رخدادهای درخواست دوستی/پذیرش/افزوده‌شدن به گروه و RPCهای `partyplay_activity_feed` و `partyplay_mark_activity_read` را ایجاد کرد. هیچ دادهٔ موجودی حذف نشد.
+
+پرس‌وجوی فقط‌خواندنی پس از اجرا تأیید کرد که جدول `pp_activity_events` وجود دارد، triggerهای `pp_activity_friend_request` و `pp_activity_group_member` فعال هستند، جدول در publication `supabase_realtime` قرار دارد و RPCهای `partyplay_activity_feed(integer)` و `partyplay_mark_activity_read(uuid[])` در دسترس‌اند.
