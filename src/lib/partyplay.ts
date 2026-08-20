@@ -179,6 +179,17 @@ export type ActiveRoomSummary = {
   updatedAt: string
 }
 
+export type PartyPlayActivity = {
+  id: string
+  kind: 'friend_request' | 'friend_accepted' | 'group_added' | 'room_invite' | 'game_finished' | 'achievement' | 'report_update'
+  title: string
+  body: string
+  payload: Record<string, unknown>
+  createdAt: string
+  readAt: string | null
+  actor: { id: string; username: string; displayName: string; avatarSeed: string } | null
+}
+
 export class PartyPlayError extends Error {
   readonly code: string
   constructor(code: string) { super(roomErrorMessage(code)); this.code = code }
@@ -364,6 +375,29 @@ export async function loadMyActiveRooms(limit = 3): Promise<ActiveRoomSummary[]>
     const room = Array.isArray(row.room) ? row.room[0] : row.room
     return room ? [{ id: room.id, inviteCode: room.invite_code, name: room.name, gameType: room.game_type, status: room.status, capacity: room.capacity, updatedAt: room.updated_at }] : []
   })
+}
+
+export async function loadActivityFeed(limit = 30): Promise<PartyPlayActivity[]> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_activity_feed', { p_limit: Math.max(1, Math.min(limit, 60)) })
+  throwIfError(error)
+  return ((data || []) as Array<{ id: string; kind: PartyPlayActivity['kind']; title: string; body: string; payload?: Record<string, unknown>; created_at: string; read_at: string | null; actor: { id: string; username: string; display_name: string; avatar_seed: string } | null }>).map((event) => ({
+    id: event.id,
+    kind: event.kind,
+    title: event.title,
+    body: event.body,
+    payload: event.payload || {},
+    createdAt: event.created_at,
+    readAt: event.read_at,
+    actor: event.actor ? { id: event.actor.id, username: event.actor.username, displayName: event.actor.display_name, avatarSeed: event.actor.avatar_seed } : null,
+  }))
+}
+
+export async function markActivityRead(ids?: string[]) {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_mark_activity_read', { p_ids: ids?.length ? ids : null })
+  throwIfError(error)
+  return Number(data || 0)
 }
 
 export async function loadOnlineRoom(roomId: string): Promise<LoadedRoom> {

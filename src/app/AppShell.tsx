@@ -1,10 +1,10 @@
 import { type ReactNode, useState } from 'react'
-import { Gamepad2, Globe2, Home, Menu, Moon, Settings2, Sun, Users } from 'lucide-react'
+import { BellRing, Gamepad2, Globe2, Home, Menu, Moon, Settings2, Sun, Users } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { PlayerAvatar } from '../components/SocialIdentity'
 import AuthGate from '../components/AuthGate'
 
-export type ShellDestination = 'home' | 'games' | 'friends' | 'groups' | 'profile'
+export type ShellDestination = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'activity'
 
 type AppShellProps = {
   activePage: string
@@ -15,6 +15,7 @@ type AppShellProps = {
   playerPresence?: 'online' | 'away' | 'busy' | 'offline'
   onThemeToggle: () => void
   onNavigate: (destination: ShellDestination) => void
+  activityUnread?: number
   children: ReactNode
   overlay?: ReactNode
 }
@@ -28,6 +29,7 @@ export default function AppShell({
   playerPresence,
   onThemeToggle,
   onNavigate,
+  activityUnread = 0,
   children,
   overlay,
 }: AppShellProps) {
@@ -81,6 +83,7 @@ export default function AppShell({
               <button className="language-toggle icon-button" onClick={() => setPreference(language === 'fa' ? 'en' : 'fa')} aria-label={t.app.language} title={t.app.language}>
                 <Globe2 size={18} /><span>{language === 'fa' ? 'FA' : 'EN'}</span>
               </button>
+              <button className={`activity-toggle icon-button ${activityUnread ? 'has-unread' : ''}`} onClick={() => navigate('activity')} aria-label="مرکز فعالیت" title="مرکز فعالیت"><BellRing size={18}/>{activityUnread > 0 && <i>{activityUnread > 9 ? '9+' : activityUnread}</i>}</button>
               <button className="theme-toggle icon-button" onClick={onThemeToggle} aria-label={t.app.theme} title={t.app.theme}>
                 {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
               </button>

@@ -17,6 +17,7 @@ import OnlineTruthDareRoom, { TruthDareRoomSetup } from './components/OnlineTrut
 import OnlineMafiaRoom, { MafiaRoomSetup } from './components/OnlineMafiaRoom'
 import OnlineMafia from './components/OnlineMafia'
 import AdminConsole from './components/AdminConsole'
+import ActivityCenter from './components/ActivityCenter'
 import OnlineFullGameRoom, { FullGameSetup } from './components/OnlineFullGameRoom'
 import OnlineFullGame from './components/OnlineFullGame'
 import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
@@ -24,6 +25,7 @@ import { useOnlineTruthDare } from './hooks/useOnlineTruthDare'
 import { useOnlineMafia } from './hooks/useOnlineMafia'
 import { useOnlineFullGame } from './hooks/useOnlineFullGame'
 import { usePartyPlayData } from './hooks/usePartyPlayData'
+import { useActivityFeed } from './hooks/useActivityFeed'
 import { useSessionPlayProgress, type SessionMedal } from './hooks/useSessionPlayProgress'
 import { dareCards, shuffledIndexes, truthCards } from './data/truthDareCards'
 import { GroupBadge, PlayerAvatar } from './components/SocialIdentity'
@@ -41,7 +43,7 @@ import RealFreecell from './components/RealFreecell'
 import { gameById, publicGameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
 import type { ActiveRoomSummary, AdminTestRoom, FullPartyPlayGameType } from './lib/partyplay'
 
-type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'admin' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
+type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'activity' | 'admin' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
 type ThemePreference = 'system' | 'light' | 'dark'
 type GameId = PartyGameId
 type PracticePhase = 'setup' | 'playing' | 'finished'
@@ -93,6 +95,7 @@ function App() {
   const mafia = useOnlineMafia()
   const fullGame = useOnlineFullGame()
   const sessionProgress = useSessionPlayProgress()
+  const activity = useActivityFeed()
 
   const activeGame = localizeGame(gameById(selectedGame), language)
   const currentTheme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
@@ -303,6 +306,7 @@ function App() {
     if (page === 'friends') return <SocialFriendsPage onBack={() => setPage('home')} friends={friends} requests={requests} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} notify={setToast}/>
     if (page === 'groups') return <SocialGroupsPage onBack={() => setPage('home')} groups={groups} createGroup={createGroup} addGroupMember={addGroupMember} updateGroupIdentity={updateGroupIdentity} notify={setToast}/>
     if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void refresh().catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast}/>
+    if (page === 'activity') return <ActivityCenter items={activity.items} loading={activity.loading} unreadCount={activity.unreadCount} onBack={() => setPage('home')} onMarkAllRead={() => void activity.markAllRead().catch(showOnlineError)} onNavigate={(destination) => setPage(destination)}/>
     if (page === 'room' && onlineRoom) return <OnlineTicTacToeRoom room={onlineRoom} currentUserId={onlineUserId} pending={onlinePending} onBack={() => setPage('home')} onStart={() => void startOnlineRoom().then(() => setPage('game')).catch(showOnlineError)} onInvite={() => { const link = `${window.location.origin}${window.location.pathname}?room=${onlineRoom.room.invite_code}`; if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(link); setToast('لینک دعوت کپی شد.') }} />
     if (page === 'truth-setup') return <TruthDareRoomSetup pending={truthDare.pending} onBack={() => setPage('games')} onCreate={createOnlineTruthDare}/>
     if (page === 'mafia-setup') return <MafiaRoomSetup pending={mafia.pending} error={mafia.error} onCreate={createOnlineMafia}/>
@@ -328,6 +332,7 @@ function App() {
       : page === 'friends' ? t.app.friends
         : page === 'groups' ? t.app.groups
           : page === 'profile' ? t.app.profile
+            : page === 'activity' ? (language === 'fa' ? 'فعالیت‌ها' : 'Activity')
             : page === 'admin' ? (language === 'fa' ? 'مدیریت' : 'Admin')
               : page === 'room' ? t.app.room
               : page === 'game' || page === 'arcade-game' ? activeGame.title
@@ -340,7 +345,7 @@ function App() {
     {toast && <div className="toast"><Check size={18}/><span>{toast}</span><button onClick={() => setToast('')}><X size={16}/></button></div>}
   </>
 
-  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerPresence={profile?.presence} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}>{renderPage()}</AppShell>
+  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerPresence={profile?.presence} activityUnread={activity.unreadCount} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}>{renderPage()}</AppShell>
 }
 
 function MedalCelebration({ medal, onDismiss }: { medal: SessionMedal; onDismiss: () => void }) {
