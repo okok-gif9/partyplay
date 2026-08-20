@@ -8,3 +8,13 @@
 
 مرحلهٔ بعد: افزودن migration متناظر به مخزن، ساخت رابط ورود چندروش، امنیت حساب و کنترل‌های مدیریت تخلف، سپس آزمون و انتشار.
 
+
+## افزودهٔ نهایی — migration 0014
+
+پس از بازگشت نشست Supabase، migration `0014_enable_cron_and_admin_account_state.sql` از commit `7b3a8b60e9e0874c0c76f340efc9ddf37c36a95d` در پروژهٔ تولید اجرا شد. طول منبع اجراشده ۲٬۰۶۱ نویسه و SHA-256 آن `c6b7baa80135eb9ccebacfc4d6f17a5796b96381e4e5a2bddeccc655c4985326` بود. نتیجهٔ ویرایشگر SQL: `Success. No rows returned`.
+
+این migration وجود extension `pg_cron` و job روزانهٔ پاک‌سازی را به‌صورت idempotent تضمین می‌کند و تابع `partyplay_admin_user_detail(uuid)` را طوری ارتقا می‌دهد که فقط وضعیت حساب، علت ثبت‌شده و زمان‌های محدودیت/پاک‌سازی را به مدیر مجاز نمایش دهد.
+
+## پرس‌وجوی تأیید نهایی
+
+پرس‌وجوی فقط‌خواندنی پس از اجرای migration 0014 تأیید کرد که `pg_cron` با نسخهٔ `1.6.4` نصب است، job با نام `partyplay-purge-due-accounts` و برنامهٔ `17 3 * * *` وجود دارد، و هر دو تابع `partyplay_admin_user_detail(uuid)` و `partyplay_purge_due_accounts()` قابل فراخوانی هستند.
