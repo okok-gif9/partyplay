@@ -14,6 +14,7 @@ create table if not exists public.pp_player_achievements (
 create index if not exists pp_player_achievements_user_earned_idx on public.pp_player_achievements(user_id, earned_at desc);
 
 alter table public.pp_player_achievements enable row level security;
+drop policy if exists "pp_player_achievements_visible_to_owner" on public.pp_player_achievements;
 create policy "pp_player_achievements_visible_to_owner" on public.pp_player_achievements
 for select to authenticated using (user_id = auth.uid());
 
@@ -129,7 +130,7 @@ security definer
 set search_path = public
 as $$
   with member_sessions as (
-    select session.id, session.game_type, session.status, session.created_at, session.started_at, session.finished_at
+    select session.id, session.game_type, session.status, session.created_at, session.finished_at
     from public.pp_game_sessions session
     join public.pp_room_members member on member.room_id = session.room_id
     where member.user_id = auth.uid() and member.role in ('host', 'player')
@@ -139,8 +140,8 @@ as $$
       count(*)::integer as games_played,
       count(*) filter (where status = 'finished')::integer as finished_games,
       count(*) filter (where game_type = 'mafia')::integer as mafia_games,
-      count(distinct coalesce(started_at, created_at)::date) filter (where coalesce(started_at, created_at)::date >= current_date - interval '6 days')::integer as week_active_days,
-      max(coalesce(finished_at, started_at, created_at)) as last_game_at
+      count(distinct created_at::date) filter (where created_at::date >= current_date - interval '6 days')::integer as week_active_days,
+      max(coalesce(finished_at, created_at)) as last_game_at
     from member_sessions
   ),
   achievements as (
