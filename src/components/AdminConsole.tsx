@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import {
-  Activity, ArrowLeft, BarChart3, ChevronLeft, CircleStop, Clock3, Copy, Database, Gamepad2,
-  LockKeyhole, Radio, RefreshCw, Rocket, Search, ShieldCheck, Trophy, UserRound, UsersRound,
+  Activity, AlertTriangle, ArrowLeft, Ban, BarChart3, ChevronLeft, CircleStop, Clock3, Copy, Database, Gamepad2,
+  LockKeyhole, Radio, RefreshCw, Rocket, RotateCcw, Search, ShieldCheck, Trash2, Trophy, UserCheck, UserRound, UsersRound,
 } from 'lucide-react'
 import { PlayerAvatar } from './SocialIdentity'
 import { gameById, gameCatalog, type PartyGameId } from '../data/gameCatalog'
-import type { AdminTestRoom, AdminUserDetail, PartyPlayGameType } from '../lib/partyplay'
+import type { AccountModerationAction, AdminTestRoom, AdminUserDetail, PartyPlayGameType } from '../lib/partyplay'
 import { useAdminConsole } from '../hooks/useAdminConsole'
 import { useLanguage } from '../i18n'
 
@@ -58,6 +58,9 @@ export default function AdminConsole({ onBack, onOpenPractice, onEnterRoom, noti
     myRooms: 'اتاق‌های تست من', noRooms: 'هنوز اتاق تستی نساخته‌ای.', enter: 'ورود به لابی', copyLink: 'کپی لینک', cancel: 'لغو اتاق',
     secure: 'داده‌ها فقط از توابع مدیریت‌شدهٔ Supabase بارگذاری می‌شوند.', unauthorized: 'این حساب اجازهٔ ورود به مرکز فرمان را ندارد.',
     tryAgain: 'تلاش دوباره', back: 'بازگشت به آرکید', dataLive: 'دادهٔ زنده', noUsers: 'هنوز کاربری برای نمایش نیست.',
+    moderation: 'مدیریت تخلف', moderationDescription: 'هر اقدام با دلیل در گزارش غیرقابل‌ویرایش ثبت می‌شود.', accountState: 'وضعیت حساب', accountActive: 'فعال', restricted: 'محدود', suspended: 'تعلیق‌شده', pendingDeletion: 'حذف در انتظار',
+    reason: 'دلیل اقدام', reasonHint: 'حداقل ۸ نویسه، برای گزارش مدیریتی.', duration: 'مدت محدودیت', permanent: 'بدون پایان', restrict: 'محدودسازی', suspend: 'تعلیق حساب', restore: 'بازگردانی', scheduleDelete: 'حذف با مهلت ۳۰روزه', purgeNow: 'پاک‌سازی فوری',
+    typedConfirmation: 'برای حذف، شناسهٔ کاربر را دقیق وارد کن', applyAction: 'ثبت اقدام', restrictionUntil: 'تا', purgeAfter: 'پاک‌سازی پس از', recordedReason: 'دلیل ثبت‌شده', actionApplied: 'اقدام مدیریتی ثبت و وضعیت کاربر به‌روز شد.', userPurged: 'حساب کاربر به‌طور دائم پاک‌سازی شد.',
   } : {
     eyebrow: 'COMMAND CENTER', title: 'PartyPlay control room', subtitle: 'Live platform signals, people, and your test rooms.',
     refresh: 'Refresh', overview: 'Overview', users: 'Users', launch: 'Quick launch', rooms: 'My rooms',
@@ -71,6 +74,9 @@ export default function AdminConsole({ onBack, onOpenPractice, onEnterRoom, noti
     myRooms: 'My test rooms', noRooms: 'No test room has been created yet.', enter: 'Open lobby', copyLink: 'Copy link', cancel: 'Cancel room',
     secure: 'Data is loaded only through controlled Supabase functions.', unauthorized: 'This account is not allowed to open the command center.',
     tryAgain: 'Try again', back: 'Back to arcade', dataLive: 'Live data', noUsers: 'No user is available yet.',
+    moderation: 'Moderation', moderationDescription: 'Every action is recorded with a reason in the immutable account audit trail.', accountState: 'Account state', accountActive: 'Active', restricted: 'Restricted', suspended: 'Suspended', pendingDeletion: 'Deletion pending',
+    reason: 'Action reason', reasonHint: 'At least 8 characters, recorded for administrators.', duration: 'Restriction duration', permanent: 'No expiry', restrict: 'Restrict', suspend: 'Suspend account', restore: 'Restore', scheduleDelete: 'Schedule 30-day deletion', purgeNow: 'Purge now',
+    typedConfirmation: 'For deletion, type the user handle exactly', applyAction: 'Apply action', restrictionUntil: 'Until', purgeAfter: 'Purge after', recordedReason: 'Recorded reason', actionApplied: 'Moderation action recorded and user state refreshed.', userPurged: 'The user account was permanently purged.',
   }
 
   const admin = useAdminConsole()
@@ -81,12 +87,19 @@ export default function AdminConsole({ onBack, onOpenPractice, onEnterRoom, noti
   const [selectedLaunch, setSelectedLaunch] = useState<LaunchOption>(launchOptions[0])
   const [capacity, setCapacity] = useState(launchOptions[0].capacities[0])
   const [roomName, setRoomName] = useState('')
+  const [moderationAction, setModerationAction] = useState<AccountModerationAction>('restrict')
+  const [moderationReason, setModerationReason] = useState('')
+  const [restrictionDuration, setRestrictionDuration] = useState<24 | 168 | 720 | 'permanent'>(24)
+  const [moderationConfirmation, setModerationConfirmation] = useState('')
 
   const maxActivity = Math.max(1, ...(admin.dashboard?.activity.map((day) => Math.max(day.registrations, day.active_users)) || [1]))
   const selectLaunch = (option: LaunchOption) => { setSelectedLaunch(option); setCapacity(option.capacities[0]) }
 
   const showUser = async (userId: string) => {
     setDetailLoading(true)
+    setModerationAction('restrict')
+    setModerationReason('')
+    setModerationConfirmation('')
     try { setSelectedUser(await admin.loadUser(userId)) }
     catch (cause) { notify(cause instanceof Error ? cause.message : 'User details could not be loaded.') }
     finally { setDetailLoading(false) }
@@ -109,6 +122,42 @@ export default function AdminConsole({ onBack, onOpenPractice, onEnterRoom, noti
   const cancelRoom = async (room: AdminTestRoom) => {
     try { await admin.cancelTestRoom(room.id); notify(fa ? 'اتاق تست لغو شد.' : 'Test room cancelled.') }
     catch (cause) { notify(cause instanceof Error ? cause.message : 'Room could not be cancelled.') }
+  }
+
+  const accountStateLabel = (state?: string) => state === 'restricted' ? copy.restricted : state === 'suspended' ? copy.suspended : state === 'pending_deletion' ? copy.pendingDeletion : copy.accountActive
+  const actionLabel = (action: AccountModerationAction) => action === 'restrict' ? copy.restrict : action === 'suspend' ? copy.suspend : action === 'restore' ? copy.restore : action === 'schedule_delete' ? copy.scheduleDelete : copy.purgeNow
+
+  const applyModeration = async () => {
+    if (!selectedUser) return
+    if (moderationReason.trim().length < 8) {
+      notify(copy.reasonHint)
+      return
+    }
+    const needsUsername = moderationAction === 'schedule_delete' || moderationAction === 'purge_now'
+    if (needsUsername && moderationConfirmation.trim().toLowerCase() !== selectedUser.username.toLowerCase()) {
+      notify(copy.typedConfirmation)
+      return
+    }
+    try {
+      const detail = await admin.moderateAccount({
+        userId: selectedUser.id,
+        action: moderationAction,
+        reason: moderationReason.trim(),
+        durationHours: moderationAction === 'restrict' ? (restrictionDuration === 'permanent' ? null : restrictionDuration) : null,
+        confirmUsername: needsUsername ? moderationConfirmation.trim() : undefined,
+      })
+      setModerationReason('')
+      setModerationConfirmation('')
+      if (detail) {
+        setSelectedUser(detail)
+        notify(copy.actionApplied)
+      } else {
+        setSelectedUser(null)
+        notify(copy.userPurged)
+      }
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : 'Moderation action could not be applied.')
+    }
   }
 
   if (admin.loading && !admin.session && !admin.error) return <section className="admin-loading"><span className="admin-orb"/><p>{fa ? 'در حال باز کردن مرکز فرمان…' : 'Opening command center…'}</p></section>
@@ -155,7 +204,7 @@ export default function AdminConsole({ onBack, onOpenPractice, onEnterRoom, noti
       </div>
     </div>
 
-    {selectedUser && <div className="admin-user-drawer-backdrop" role="presentation" onClick={() => setSelectedUser(null)}><aside className="admin-user-drawer" role="dialog" aria-modal="true" aria-label={copy.userDetail} onClick={(event) => event.stopPropagation()}><button className="icon-button admin-drawer-close" onClick={() => setSelectedUser(null)}>×</button><PlayerAvatar seed={selectedUser.avatar_seed} label={selectedUser.display_name} size="lg" status={selectedUser.presence}/><span className="eyebrow"><UserRound size={14}/>{copy.userDetail}</span><h2>{selectedUser.display_name}</h2><p dir="ltr">@{selectedUser.username}</p><div className="admin-detail-grid"><div><small>{copy.email}</small><strong dir="ltr">{selectedUser.email || '—'}</strong></div><div><small>{copy.joined}</small><strong>{dateLabel(selectedUser.created_at, fa)}</strong></div><div><small>{copy.lastActivity}</small><strong>{dateLabel(selectedUser.last_activity_at, fa)}</strong></div><div><small>{copy.gamesDone}</small><strong>{selectedUser.completed_games}</strong></div></div><button className="secondary-button full-button" onClick={() => setSelectedUser(null)}>{copy.close}</button></aside></div>}
+    {selectedUser && <div className="admin-user-drawer-backdrop" role="presentation" onClick={() => setSelectedUser(null)}><aside className="admin-user-drawer" role="dialog" aria-modal="true" aria-label={copy.userDetail} onClick={(event) => event.stopPropagation()}><button className="icon-button admin-drawer-close" onClick={() => setSelectedUser(null)}>×</button><PlayerAvatar seed={selectedUser.avatar_seed} label={selectedUser.display_name} size="lg" status={selectedUser.presence}/><span className="eyebrow"><UserRound size={14}/>{copy.userDetail}</span><h2>{selectedUser.display_name}</h2><p dir="ltr">@{selectedUser.username}</p><div className="admin-detail-grid"><div><small>{copy.email}</small><strong dir="ltr">{selectedUser.email || '—'}</strong></div><div><small>{copy.joined}</small><strong>{dateLabel(selectedUser.created_at, fa)}</strong></div><div><small>{copy.lastActivity}</small><strong>{dateLabel(selectedUser.last_activity_at, fa)}</strong></div><div><small>{copy.gamesDone}</small><strong>{selectedUser.completed_games}</strong></div></div><section className="admin-moderation-panel"><div className="admin-moderation-heading"><div><span className="eyebrow"><AlertTriangle size={14}/>{copy.moderation}</span><h3>{copy.accountState}: <b className={`admin-account-state state-${selectedUser.account_state || 'active'}`}>{accountStateLabel(selectedUser.account_state)}</b></h3><p>{copy.moderationDescription}</p></div></div>{selectedUser.moderation_reason && <div className="admin-moderation-current"><strong>{copy.recordedReason}</strong><span>{selectedUser.moderation_reason}</span>{selectedUser.restricted_until && <small>{copy.restrictionUntil}: {dateLabel(selectedUser.restricted_until, fa)}</small>}{selectedUser.purge_after && <small>{copy.purgeAfter}: {dateLabel(selectedUser.purge_after, fa)}</small>}</div>}<div className="admin-moderation-actions">{([['restrict', Ban], ['suspend', AlertTriangle], ['restore', RotateCcw], ['schedule_delete', Clock3], ['purge_now', Trash2]] as Array<[AccountModerationAction, typeof Ban]>).map(([action, Icon]) => <button key={action} type="button" className={moderationAction === action ? `moderation-action-selected action-${action}` : ''} onClick={() => setModerationAction(action)}><Icon size={15}/>{actionLabel(action)}</button>)}</div>{moderationAction === 'restrict' && <label className="admin-moderation-field">{copy.duration}<select value={restrictionDuration} onChange={(event) => setRestrictionDuration(event.target.value === 'permanent' ? 'permanent' : Number(event.target.value) as 24 | 168 | 720)}><option value={24}>{fa ? '۲۴ ساعت' : '24 hours'}</option><option value={168}>{fa ? '۷ روز' : '7 days'}</option><option value={720}>{fa ? '۳۰ روز' : '30 days'}</option><option value="permanent">{copy.permanent}</option></select></label>}<label className="admin-moderation-field">{copy.reason}<textarea value={moderationReason} onChange={(event) => setModerationReason(event.target.value)} placeholder={copy.reasonHint} minLength={8} maxLength={280}/></label>{(moderationAction === 'schedule_delete' || moderationAction === 'purge_now') && <label className="admin-moderation-field admin-confirm-field">{copy.typedConfirmation}<input value={moderationConfirmation} onChange={(event) => setModerationConfirmation(event.target.value)} placeholder={`@${selectedUser.username}`} dir="ltr" autoComplete="off"/></label>}<button className={`admin-moderation-submit ${moderationAction === 'purge_now' ? 'is-purge' : ''}`} type="button" disabled={admin.busy || moderationReason.trim().length < 8 || ((moderationAction === 'schedule_delete' || moderationAction === 'purge_now') && moderationConfirmation.trim().toLowerCase() !== selectedUser.username.toLowerCase())} onClick={() => void applyModeration()}>{admin.busy ? <RefreshCw className="spin" size={16}/> : moderationAction === 'restore' ? <UserCheck size={16}/> : moderationAction === 'purge_now' ? <Trash2 size={16}/> : <ShieldCheck size={16}/>}{copy.applyAction}</button></section><button className="secondary-button full-button" onClick={() => setSelectedUser(null)}>{copy.close}</button></aside></div>}
     {detailLoading && <div className="admin-detail-loading"><span className="admin-orb"/></div>}
   </section>
 }

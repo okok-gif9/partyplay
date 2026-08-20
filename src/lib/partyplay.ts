@@ -130,7 +130,29 @@ export type AdminUserSummary = {
 
 export type AdminUserList = { items: AdminUserSummary[]; total: number; limit: number; offset: number }
 
-export type AdminUserDetail = AdminUserSummary & { email: string | null; last_activity_at: string | null }
+export type AccountAccessState = 'active' | 'restricted' | 'suspended' | 'pending_deletion'
+
+export type AccountSecurityState = {
+  state: AccountAccessState
+  restricted_until?: string | null
+  purge_after?: string | null
+  reason?: string | null
+  can_set_password?: boolean
+  google_configured?: boolean
+}
+
+export type AccountModerationAction = 'restrict' | 'suspend' | 'restore' | 'schedule_delete' | 'purge_now'
+
+export type AccountModerationResult = AccountSecurityState | { state: 'purged'; user_id: string }
+
+export type AdminUserDetail = AdminUserSummary & {
+  email: string | null
+  last_activity_at: string | null
+  account_state?: AccountAccessState
+  restricted_until?: string | null
+  purge_after?: string | null
+  moderation_reason?: string | null
+}
 
 export type AdminTestRoom = {
   id: string
@@ -190,6 +212,14 @@ const roomErrorMessage = (code: string) => {
     INVALID_QUERY: 'عبارت جست‌وجو معتبر نیست.',
     USER_NOT_FOUND: 'کاربر موردنظر پیدا نشد.',
     ROOM_NOT_CANCELLABLE: 'فقط اتاق تستی که هنوز شروع نشده قابل لغو است.',
+    ACCOUNT_RESTRICTED: 'این حساب موقتاً برای فعالیت در پارتی پلی محدود شده است.',
+    ACCOUNT_SUSPENDED: 'این حساب برای استفاده از پارتی پلی تعلیق شده است.',
+    ACCOUNT_PENDING_DELETION: 'حذف این حساب در انتظار بازیابی یا پاک‌سازی نهایی است.',
+    DELETE_CONFIRMATION_REQUIRED: 'برای تأیید این عمل، عبارت خواسته‌شده را دقیق وارد کن.',
+    CANNOT_MODERATE_SELF: 'نمی‌توانی روی حساب مدیر فعلی اقدام مدیریتی انجام دهی.',
+    MODERATION_REASON_REQUIRED: 'دلیل اقدام باید دست‌کم ۸ نویسه داشته باشد.',
+    INVALID_RESTRICTION_DURATION: 'مدت محدودیت انتخاب‌شده معتبر نیست.',
+    INVALID_MODERATION_ACTION: 'اقدام مدیریتی انتخاب‌شده معتبر نیست.',
   }
   return messages[code] || 'ارتباط با بازی کامل نشد. دوباره تلاش کن.'
 }
@@ -206,6 +236,8 @@ const knownErrorCodes = [
   'GAME_NOT_ACTIVE', 'SESSION_NOT_FOUND', 'INVALID_CHOICE', 'CHOICE_ALREADY_MADE', 'CARD_NOT_REVEALED', 'CHAT_LIMIT_REACHED',
   'CHAT_CLOSED', 'INVALID_MESSAGE', 'INVALID_REACTION', 'MESSAGE_NOT_FOUND', 'SUPABASE_NOT_CONFIGURED',
   'NOT_ADMIN', 'INVALID_QUERY', 'USER_NOT_FOUND', 'ROOM_NOT_CANCELLABLE',
+  'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
+  'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
 ]
 
 const throwIfError = (error: { message?: string } | null) => {
@@ -337,6 +369,12 @@ export async function loadOnlineSessionMessages(roomId: string, sessionId: strin
 }
 
 export const loadOnlineTruthDareMessages = loadOnlineSessionMessages
+
+export async function getAccountSecurityState() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_account_security_state'); throwIfError(error); return data as AccountSecurityState }
+export async function restoreAccountAfterSignIn() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_restore_account_after_sign_in'); throwIfError(error); return data as AccountSecurityState }
+export async function requestAccountDeletion(confirmation: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_request_account_deletion', { p_confirmation: confirmation }); throwIfError(error); return data as AccountSecurityState }
+export async function requireProductAccess() { const client = requireClient(); const { error } = await client.rpc('partyplay_require_product_access'); throwIfError(error) }
+export async function adminModerateAccount(input: { userId: string; action: AccountModerationAction; reason: string; durationHours?: 24 | 168 | 720 | null; confirmUsername?: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_moderate_account', { p_user_id: input.userId, p_action: input.action, p_reason: input.reason, p_duration_hours: input.durationHours ?? null, p_confirm_username: input.confirmUsername ?? null }); throwIfError(error); return data as AccountModerationResult }
 
 export async function loadAdminSession() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_session'); throwIfError(error); return data as AdminSession }
 export async function loadAdminDashboard() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_dashboard'); throwIfError(error); return data as AdminDashboard }
