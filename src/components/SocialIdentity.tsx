@@ -1,22 +1,38 @@
 import { BadgeCheck, Compass, Cuboid, Flag, Orbit, ShieldCheck, Sparkles, Star, Triangle } from 'lucide-react'
+import mintAvatar from '../assets/avatars/mint.png'
+import coralAvatar from '../assets/avatars/coral.png'
+import skyAvatar from '../assets/avatars/sky.png'
+import sunAvatar from '../assets/avatars/sun.png'
+import orchidAvatar from '../assets/avatars/orchid.png'
+import limeAvatar from '../assets/avatars/lime.png'
+import peachAvatar from '../assets/avatars/peach.png'
+import navyAvatar from '../assets/avatars/navy.png'
+import berryAvatar from '../assets/avatars/berry.png'
+import aquaAvatar from '../assets/avatars/aqua.png'
+import plumAvatar from '../assets/avatars/plum.png'
+import mangoAvatar from '../assets/avatars/mango.png'
+import novaAvatar from '../assets/avatars/nova.png'
+import royalAvatar from '../assets/avatars/royal.png'
+import cometAvatar from '../assets/avatars/comet.png'
+import prismAvatar from '../assets/avatars/prism.png'
 
 export const avatarOptions = [
-  { id: 'mint', label: 'مدار مِینت', variant: 'orbit', premiumOnly: false },
-  { id: 'coral', label: 'ماسک مرجانی', variant: 'mask', premiumOnly: false },
-  { id: 'sky', label: 'بادبادک آسمانی', variant: 'kite', premiumOnly: false },
-  { id: 'sun', label: 'خورشید', variant: 'sun', premiumOnly: false },
-  { id: 'orchid', label: 'گل ارغوانی', variant: 'petal', premiumOnly: false },
-  { id: 'lime', label: 'صاعقه لیمویی', variant: 'bolt', premiumOnly: false },
-  { id: 'peach', label: 'هلال هلویی', variant: 'crescent', premiumOnly: false },
-  { id: 'navy', label: 'فضانورد شبانه', variant: 'helmet', premiumOnly: false },
-  { id: 'berry', label: 'ربات بری', variant: 'bot', premiumOnly: false },
-  { id: 'aqua', label: 'موج دریایی', variant: 'wave', premiumOnly: false },
-  { id: 'plum', label: 'منشور آلویی', variant: 'prism', premiumOnly: false },
-  { id: 'mango', label: 'قلب مانگو', variant: 'heart', premiumOnly: false },
-  { id: 'nova', label: 'نووا', variant: 'nova', premiumOnly: true },
-  { id: 'royal', label: 'رویال', variant: 'royal', premiumOnly: true },
-  { id: 'comet', label: 'دنباله‌دار', variant: 'comet', premiumOnly: true },
-  { id: 'prism', label: 'منشور ویژه', variant: 'prism-premium', premiumOnly: true },
+  { id: 'mint', label: 'گیمر نقاب‌دار', variant: 'gamer', premiumOnly: false, asset: mintAvatar },
+  { id: 'coral', label: 'روباه هدست‌دار', variant: 'fox', premiumOnly: false, asset: coralAvatar },
+  { id: 'sky', label: 'پنگوئن استریمر', variant: 'penguin', premiumOnly: false, asset: skyAvatar },
+  { id: 'sun', label: 'ربات روشن', variant: 'robot', premiumOnly: false, asset: sunAvatar },
+  { id: 'orchid', label: 'جغد بازیگوش', variant: 'owl', premiumOnly: false, asset: orchidAvatar },
+  { id: 'lime', label: 'کوسهٔ خندان', variant: 'shark', premiumOnly: false, asset: limeAvatar },
+  { id: 'peach', label: 'فضانورد کوچک', variant: 'astronaut', premiumOnly: false, asset: peachAvatar },
+  { id: 'navy', label: 'گربهٔ استراتژیست', variant: 'cat', premiumOnly: false, asset: navyAvatar },
+  { id: 'berry', label: 'ربات بری', variant: 'robot-berry', premiumOnly: false, asset: berryAvatar },
+  { id: 'aqua', label: 'سمور دریایی', variant: 'otter', premiumOnly: false, asset: aquaAvatar },
+  { id: 'plum', label: 'آفتاب‌پرست هنرمند', variant: 'chameleon', premiumOnly: false, asset: plumAvatar },
+  { id: 'mango', label: 'اژدهای کوچولو', variant: 'dragon', premiumOnly: false, asset: mangoAvatar },
+  { id: 'nova', label: 'پاندای قهرمان', variant: 'panda', premiumOnly: true, asset: novaAvatar },
+  { id: 'royal', label: 'گربهٔ سلطنتی', variant: 'royal-cat', premiumOnly: true, asset: royalAvatar },
+  { id: 'comet', label: 'سنجاب استریمر', variant: 'squirrel', premiumOnly: true, asset: cometAvatar },
+  { id: 'prism', label: 'خرس قطبی ویژه', variant: 'polar-bear', premiumOnly: true, asset: prismAvatar },
 ] as const
 
 export const groupBadgeOptions = [
@@ -31,24 +47,13 @@ export type GroupBadgeSeed = typeof groupBadgeOptions[number]['id']
 export type IdentityTier = 'standard' | 'premium'
 export type SiteRole = 'member' | 'site_admin'
 
-export type IdentityMeta = {
-  isVerified?: boolean
-  membershipTier?: IdentityTier
-  siteRole?: SiteRole
-  tagline?: string
-}
+export type IdentityMeta = { isVerified?: boolean; membershipTier?: IdentityTier; siteRole?: SiteRole; tagline?: string }
 
-type PlayerAvatarProps = {
-  seed?: string | null
-  label: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
-  status?: 'online' | 'away' | 'busy' | 'offline'
-  className?: string
-}
+type PlayerAvatarProps = { seed?: string | null; label: string; size?: 'sm' | 'md' | 'lg' | 'xl'; status?: 'online' | 'away' | 'busy' | 'offline'; className?: string }
 
 export function PlayerAvatar({ seed = 'mint', label, size = 'md', status, className = '' }: PlayerAvatarProps) {
   const option = avatarOptions.find((candidate) => candidate.id === seed) || avatarOptions[0]
-  return <span className={`identity-avatar avatar-${option.id} avatar-variant-${option.variant} avatar-${size} ${status && status !== 'offline' ? `avatar-status-${status}` : ''} ${className}`} aria-label={`آواتار ${label}: ${option.label}`} role="img"><i className="avatar-aura"/><i className="avatar-core"/><i className="avatar-hair"/><i className="avatar-eye avatar-eye-right"/><i className="avatar-eye avatar-eye-left"/><i className="avatar-mouth"/>{status && status !== 'offline' && <b className="avatar-presence"/>}</span>
+  return <span className={`identity-avatar avatar-character avatar-${option.id} avatar-${size} ${status && status !== 'offline' ? `avatar-status-${status}` : ''} ${className}`} aria-label={`آواتار ${label}: ${option.label}`} role="img"><img src={option.asset} alt="" draggable={false}/>{status && status !== 'offline' && <b className="avatar-presence"/>}</span>
 }
 
 export function IdentityLabel({ label, isVerified = false, membershipTier = 'standard', siteRole = 'member', tagline, compact = false }: { label: string; isVerified?: boolean; membershipTier?: IdentityTier; siteRole?: SiteRole; tagline?: string; compact?: boolean }) {
