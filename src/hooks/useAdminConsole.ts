@@ -7,9 +7,12 @@ import {
   loadAdminDashboard,
   loadAdminSession,
   loadAdminTestRooms,
+  loadAdminCommunityReports,
+  updateAdminCommunityReport,
   loadAdminUserDetail,
   loadAdminUsers,
   type AccountModerationAction,
+  type AdminCommunityReport,
   type AdminDashboard,
   type AdminMembershipInput,
   type AdminSession,
@@ -25,6 +28,7 @@ export function useAdminConsole() {
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null)
   const [users, setUsers] = useState<AdminUserList>({ items: [], total: 0, limit: 25, offset: 0 })
   const [testRooms, setTestRooms] = useState<AdminTestRoom[]>([])
+  const [communityReports, setCommunityReports] = useState<AdminCommunityReport[]>([])
   const [loading, setLoading] = useState(Boolean(supabase))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,15 +43,17 @@ export function useAdminConsole() {
     setError(null)
     try {
       const nextSession = await loadAdminSession()
-      const [nextDashboard, nextUsers, nextTestRooms] = await Promise.all([
+      const [nextDashboard, nextUsers, nextTestRooms, nextReports] = await Promise.all([
         loadAdminDashboard(),
         loadAdminUsers('', 25, 0),
         loadAdminTestRooms(),
+        loadAdminCommunityReports('open'),
       ])
       setSession(nextSession)
       setDashboard(nextDashboard)
       setUsers(nextUsers)
       setTestRooms(nextTestRooms)
+      setCommunityReports(nextReports)
       return true
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'داده‌های پنل مدیریت بارگذاری نشد.'
@@ -55,6 +61,7 @@ export function useAdminConsole() {
       setDashboard(null)
       setUsers({ items: [], total: 0, limit: 25, offset: 0 })
       setTestRooms([])
+      setCommunityReports([])
       setError(message)
       return false
     } finally {
@@ -123,6 +130,22 @@ export function useAdminConsole() {
     }
   }, [])
 
+  const refreshCommunityReports = useCallback(async (status: 'open' | 'reviewing' | 'closed' | 'all' = 'open') => {
+    setBusy(true)
+    try { const next = await loadAdminCommunityReports(status); setCommunityReports(next); return next }
+    finally { setBusy(false) }
+  }, [])
+
+  const updateCommunityReport = useCallback(async (input: { reportId: string; status: 'reviewing' | 'closed'; note: string }) => {
+    setBusy(true)
+    try {
+      await updateAdminCommunityReport(input)
+      const next = await loadAdminCommunityReports('open')
+      setCommunityReports(next)
+      return next
+    } finally { setBusy(false) }
+  }, [])
+
   const createTestRoom = useCallback(async (input: { gameType: PartyPlayGameType; name?: string; capacity: number }) => {
     setBusy(true)
     try {
@@ -148,5 +171,5 @@ export function useAdminConsole() {
     }
   }, [])
 
-  return { session, dashboard, users, testRooms, loading, busy, error, refresh, searchUsers, loadUser, moderateAccount, setMembership, createTestRoom, cancelTestRoom }
+  return { session, dashboard, users, testRooms, communityReports, loading, busy, error, refresh, searchUsers, loadUser, moderateAccount, setMembership, refreshCommunityReports, updateCommunityReport, createTestRoom, cancelTestRoom }
 }
