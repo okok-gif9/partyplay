@@ -162,6 +162,12 @@ export type AdminUserDetail = AdminUserSummary & {
 export type AdminMembershipInput = { userId: string; tier: 'standard' | 'premium'; durationDays?: 30 | 90 | 365 | null; reason: string }
 export type AdminMembershipResult = { membership_tier: 'standard' | 'premium'; premium_until: string | null; is_verified: boolean; site_role: 'member' | 'site_admin' }
 
+export type CommunityReportCategory = 'harassment' | 'spam' | 'cheating' | 'inappropriate_content' | 'other'
+export type CommunityReportStatus = 'open' | 'reviewing' | 'closed'
+export type BlockedProfile = { id: string; username: string; display_name: string; avatar_seed: string; presence: 'online' | 'away' | 'busy' | 'offline'; membership_tier: 'standard' | 'premium'; premium_until?: string | null; is_verified: boolean; site_role: 'member' | 'site_admin'; profile_tagline?: string; blocked_at?: string }
+export type MyCommunityReport = { id: string; category: CommunityReportCategory; status: CommunityReportStatus; created_at: string; target_display_name: string }
+export type AdminCommunityReport = { id: string; category: CommunityReportCategory; details: string; status: CommunityReportStatus; created_at: string; admin_note?: string | null; reporter: { id: string; display_name: string; username: string; avatar_seed: string }; target: { id: string; display_name: string; username: string; avatar_seed: string } }
+
 export type AdminTestRoom = {
   id: string
   invite_code: string
@@ -289,6 +295,7 @@ const knownErrorCodes = [
   'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
       'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
     'PREMIUM_FEATURE_REQUIRED', 'INVALID_MEMBERSHIP_TIER', 'INVALID_PREMIUM_DURATION',
+    'CANNOT_BLOCK_SELF', 'CANNOT_REPORT_SELF', 'USER_BLOCKED', 'INVALID_REPORT_CATEGORY', 'REPORT_DETAILS_REQUIRED', 'REPORT_RATE_LIMITED', 'INVALID_REPORT_STATUS', 'REPORT_NOT_FOUND',
 
 ]
 
@@ -488,6 +495,13 @@ export async function requestAccountDeletion(confirmation: string) { const clien
 export async function requireProductAccess() { const client = requireClient(); const { error } = await client.rpc('partyplay_require_product_access'); throwIfError(error) }
 export async function adminModerateAccount(input: { userId: string; action: AccountModerationAction; reason: string; durationHours?: 24 | 168 | 720 | null; confirmUsername?: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_moderate_account', { p_user_id: input.userId, p_action: input.action, p_reason: input.reason, p_duration_hours: input.durationHours ?? null, p_confirm_username: input.confirmUsername ?? null }); throwIfError(error); return data as AccountModerationResult }
 
+export async function blockCommunityUser(userId: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_block_user', { p_target_user_id: userId }); throwIfError(error); return data as BlockedProfile }
+export async function unblockCommunityUser(userId: string) { const client = requireClient(); const { error } = await client.rpc('partyplay_unblock_user', { p_target_user_id: userId }); throwIfError(error) }
+export async function loadMyBlocks() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_my_blocks'); throwIfError(error); return (data || []) as BlockedProfile[] }
+export async function submitCommunityReport(input: { userId: string; category: CommunityReportCategory; details: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_submit_user_report', { p_target_user_id: input.userId, p_category: input.category, p_details: input.details }); throwIfError(error); return data as { id: string; status: CommunityReportStatus; created_at: string } }
+export async function loadMyCommunityReports() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_my_reports'); throwIfError(error); return (data || []) as MyCommunityReport[] }
+export async function loadAdminCommunityReports(status: CommunityReportStatus | 'all' = 'open') { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_reports', { p_status: status, p_limit: 50 }); throwIfError(error); return (data || []) as AdminCommunityReport[] }
+export async function updateAdminCommunityReport(input: { reportId: string; status: 'reviewing' | 'closed'; note: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_update_report', { p_report_id: input.reportId, p_status: input.status, p_note: input.note }); throwIfError(error); return data as { id: string; status: CommunityReportStatus; admin_note: string; reviewed_at: string } }
 export async function adminSetMembership(input: AdminMembershipInput) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_set_membership', { p_user_id: input.userId, p_tier: input.tier, p_duration_days: input.durationDays ?? null, p_reason: input.reason }); throwIfError(error); return data as AdminMembershipResult }
 export async function loadAdminSession() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_session'); throwIfError(error); return data as AdminSession }
 export async function loadAdminDashboard() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_dashboard'); throwIfError(error); return data as AdminDashboard }
