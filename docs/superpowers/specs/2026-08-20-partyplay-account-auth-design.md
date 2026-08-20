@@ -76,6 +76,23 @@ Errors from expired links, unknown passwords, rate limiting, unavailable OAuth c
 
 Acceptance requires a successful production build and checks that: magic-link sign-in continues to work; a signed-in user can set a password and use it to sign in; the Google button correctly starts OAuth only after provider setup; account deletion signs the user out; a simulated recovery cancels the deletion request; and unauthenticated or non-owner deletion attempts are rejected by the database.
 
-## 8. Out of scope
+## 8. Moderation and account enforcement
+
+The admin console gains a per-user moderation surface within the existing user detail workflow. Every administrative action requires a reason, records the acting administrator and timestamp, and is written to the existing immutable audit trail. An administrator cannot moderate or delete their own account.
+
+| Action | Effect | Reversal and safety |
+|---|---|---|
+| Restrict | Blocks room creation, online play, chat, friend requests, group changes, and other social mutations while preserving sign-in and the profile. | A fixed expiry of 24 hours, 7 days, 30 days, or no expiry; the administrator can clear it early. |
+| Suspend | Blocks all PartyPlay product actions while preserving data. | The administrator can reinstate the account from the same user detail page. |
+| Schedule deletion | Uses the same 30-day recovery flow that a user can initiate personally. | Requires a reason and a double confirmation. The user can still recover through verified sign-in during the window. |
+| Purge now | Permanently deletes the Auth user and cascading PartyPlay data. | Requires typing the user's username and a reason. It is unavailable for the acting administrator. |
+
+Product RPCs must call a single account-status guard before creating or changing game, social, message, or group state. Direct table access continues to be governed by RLS. Account security and basic profile reads remain available to a restricted user so that the account can be understood, recovered, or remediated.
+
+## 9. Scheduled purge
+
+A deterministic daily database job invokes the private purge procedure. The job only processes deletion requests whose `purge_after` deadline has passed and skips active, restored, restricted, and suspended accounts. The manual administrator purge action remains available for exceptional moderation cases. The job emits an audit record for every irreversible deletion.
+
+## 10. Out of scope
 
 This change does not add social-account merging, multi-factor authentication, payment identity, or an email-password migration campaign. It does not request, store, or transmit Google OAuth secrets through GitHub, PartyPlay source files, chat messages, or the browser client.
