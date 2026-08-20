@@ -190,6 +190,27 @@ export type PartyPlayActivity = {
   actor: { id: string; username: string; displayName: string; avatarSeed: string } | null
 }
 
+export type PlayerAchievement = {
+  code: 'first_game' | 'first_friend' | 'mafia_host' | 'mafia_regular'
+  title: string
+  description: string
+  icon: string
+  accent: 'cyan' | 'gold' | 'lime' | 'pink'
+  earnedAt: string
+}
+
+export type PlayerProgress = {
+  gamesPlayed: number
+  finishedGames: number
+  mafiaGames: number
+  hostedRooms: number
+  friendsCount: number
+  groupsCount: number
+  weekActiveDays: number
+  lastGameAt: string | null
+  achievements: PlayerAchievement[]
+}
+
 export class PartyPlayError extends Error {
   readonly code: string
   constructor(code: string) { super(roomErrorMessage(code)); this.code = code }
@@ -391,6 +412,24 @@ export async function loadActivityFeed(limit = 30): Promise<PartyPlayActivity[]>
     readAt: event.read_at,
     actor: event.actor ? { id: event.actor.id, username: event.actor.username, displayName: event.actor.display_name, avatarSeed: event.actor.avatar_seed } : null,
   }))
+}
+
+export async function loadPlayerProgress(): Promise<PlayerProgress> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_player_progress')
+  throwIfError(error)
+  const value = (data || {}) as { games_played?: number; finished_games?: number; mafia_games?: number; hosted_rooms?: number; friends_count?: number; groups_count?: number; week_active_days?: number; last_game_at?: string | null; achievements?: Array<{ code: PlayerAchievement['code']; title: string; description: string; icon: string; accent: PlayerAchievement['accent']; earned_at: string }> }
+  return {
+    gamesPlayed: Number(value.games_played || 0),
+    finishedGames: Number(value.finished_games || 0),
+    mafiaGames: Number(value.mafia_games || 0),
+    hostedRooms: Number(value.hosted_rooms || 0),
+    friendsCount: Number(value.friends_count || 0),
+    groupsCount: Number(value.groups_count || 0),
+    weekActiveDays: Number(value.week_active_days || 0),
+    lastGameAt: value.last_game_at || null,
+    achievements: (value.achievements || []).map((item) => ({ code: item.code, title: item.title, description: item.description, icon: item.icon, accent: item.accent, earnedAt: item.earned_at })),
+  }
 }
 
 export async function markActivityRead(ids?: string[]) {
