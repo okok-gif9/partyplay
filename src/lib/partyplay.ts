@@ -169,6 +169,16 @@ export type MafiaTeamMessage = { id: number; dayNo: number; senderId: string; bo
 export type MafiaSpeakerReactionEvent = { dayNo: number; speakerId: string; reactorId: string; reaction: MafiaReaction }
 export type LoadedRoom = { room: PartyPlayRoom; members: PartyPlayRoomMember[]; session: PartyPlaySession | null }
 
+export type ActiveRoomSummary = {
+  id: string
+  inviteCode: string
+  name: string
+  gameType: PartyPlayGameType
+  status: PartyPlayRoom['status']
+  capacity: number
+  updatedAt: string
+}
+
 export class PartyPlayError extends Error {
   readonly code: string
   constructor(code: string) { super(roomErrorMessage(code)); this.code = code }
@@ -336,6 +346,25 @@ export async function sendOnlineMafiaTeamMessage(input: { sessionId: string; bod
 }
 
 export const submitOnlineMafiaNightAction = (input: { sessionId: string; targetUserId?: string | null; expectedVersion: number }) => rpcSession('partyplay_mafia_submit_night_action', { p_session_id: input.sessionId, p_target_user_id: input.targetUserId || null, p_expected_version: input.expectedVersion, p_command_id: commandId() })
+
+export async function loadMyActiveRooms(limit = 3): Promise<ActiveRoomSummary[]> {
+  const client = requireClient()
+  const { data: authData, error: authError } = await client.auth.getUser()
+  throwIfError(authError)
+  if (!authData.user) throw new PartyPlayError('NOT_AUTHENTICATED')
+  const { data, error } = await client
+    .from('pp_room_members')
+    .select('joined_at, room:pp_rooms!pp_room_members_room_id_fkey(id, invite_code, name, game_type, status, capacity, updated_at)')
+    .eq('user_id', authData.user.id)
+    .in('room.status', ['lobby', 'playing'])
+    .order('joined_at', { ascending: false })
+    .limit(Math.max(1, Math.min(limit, 6)))
+  throwIfError(error)
+  return ((data || []) as Array<{ room: { id: string; invite_code: string; name: string; game_type: PartyPlayGameType; status: PartyPlayRoom['status']; capacity: number; updated_at: string } | Array<{ id: string; invite_code: string; name: string; game_type: PartyPlayGameType; status: PartyPlayRoom['status']; capacity: number; updated_at: string }> | null }>).flatMap((row) => {
+    const room = Array.isArray(row.room) ? row.room[0] : row.room
+    return room ? [{ id: room.id, inviteCode: room.invite_code, name: room.name, gameType: room.game_type, status: room.status, capacity: room.capacity, updatedAt: room.updated_at }] : []
+  })
+}
 
 export async function loadOnlineRoom(roomId: string): Promise<LoadedRoom> {
   const client = requireClient()

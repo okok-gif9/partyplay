@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PartyPlayError } from '../lib/partyplay'
+import { loadMyActiveRooms, PartyPlayError, type ActiveRoomSummary } from '../lib/partyplay'
 import { supabase } from '../lib/supabase'
 
 export type Presence = 'online' | 'away' | 'busy' | 'offline'
@@ -62,6 +62,7 @@ export function usePartyPlayData() {
   const [groups, setGroups] = useState<CurrentGroup[]>([])
   const [friends, setFriends] = useState<SocialProfile[]>([])
   const [requests, setRequests] = useState<FriendRequest[]>([])
+  const [activeRooms, setActiveRooms] = useState<ActiveRoomSummary[]>([])
   const [loading, setLoading] = useState(Boolean(supabase))
 
   const refresh = useCallback(async (displayName?: string) => {
@@ -69,7 +70,7 @@ export function usePartyPlayData() {
     setLoading(true)
     try {
       const { data: authData } = await supabase.auth.getUser()
-      if (!authData.user) { setProfile(null); setGroups([]); setFriends([]); setRequests([]); return null }
+      if (!authData.user) { setProfile(null); setGroups([]); setFriends([]); setRequests([]); setActiveRooms([]); return null }
 
       const authDisplayName = typeof authData.user.user_metadata?.display_name === 'string' ? authData.user.user_metadata.display_name.trim() : ''
       const rememberedDisplayName = localStorage.getItem('partyplay-display-name')?.trim() || ''
@@ -77,11 +78,12 @@ export function usePartyPlayData() {
       const nextProfile = normalizeProfile(rawProfile)
       setProfile(nextProfile)
 
-      const [{ data: rawGroups, error: groupsError }, { data: rawMemberships, error: membershipsError }, { data: rawFriendships, error: friendshipsError }, { data: rawRequests, error: requestsError }] = await Promise.all([
+      const [{ data: rawGroups, error: groupsError }, { data: rawMemberships, error: membershipsError }, { data: rawFriendships, error: friendshipsError }, { data: rawRequests, error: requestsError }, nextActiveRooms] = await Promise.all([
         supabase.from('pp_groups').select('id, name, description, avatar_seed').order('created_at', { ascending: false }),
         supabase.from('pp_group_members').select('group_id, user_id, role'),
         supabase.from('pp_friendships').select('user_a, user_b'),
         supabase.from('pp_friend_requests').select('id, requester_id, created_at').eq('addressee_id', authData.user.id).eq('status', 'pending').order('created_at', { ascending: false }),
+        loadMyActiveRooms().catch(() => []),
       ])
       if (groupsError || membershipsError || friendshipsError || requestsError) throw new PartyPlayError(groupsError?.message || membershipsError?.message || friendshipsError?.message || requestsError?.message || 'SOCIAL_LOAD_FAILED')
 
@@ -101,6 +103,7 @@ export function usePartyPlayData() {
       setFriends(friendIds.map((id) => people.get(id)).filter((person): person is SocialProfile => Boolean(person)))
       setRequests((rawRequests || []).map((row) => ({ id: row.id, requester: people.get(row.requester_id), createdAt: row.created_at })).filter((request): request is FriendRequest => Boolean(request.requester)))
 
+      setActiveRooms(nextActiveRooms)
       setGroups(((rawGroups || []) as Array<{ id: string; name: string; description: string; avatar_seed: string }>).map((group) => {
         const groupMemberships = memberships.filter((membership) => membership.group_id === group.id)
         const members = groupMemberships.map((membership) => {
@@ -154,5 +157,5 @@ export function usePartyPlayData() {
   const addGroupMember = useCallback(async (groupId: string, username: string) => { await rpc('partyplay_add_group_member', { p_group_id: groupId, p_username: username }); await refresh() }, [refresh])
   const updateGroupIdentity = useCallback(async (groupId: string, updates: { name?: string; description?: string; avatarSeed?: string }) => { await rpc('partyplay_update_group_identity', { p_group_id: groupId, p_name: updates.name ?? null, p_description: updates.description ?? null, p_avatar_seed: updates.avatarSeed ?? null }); await refresh() }, [refresh])
 
-  return { profile, groups, friends, requests, loading, refresh, updateProfile, lookupProfile, sendFriendRequest, respondToRequest, removeFriend, createGroup, addGroupMember, updateGroupIdentity }
+  return { profile, groups, friends, requests, activeRooms, loading, refresh, updateProfile, lookupProfile, sendFriendRequest, respondToRequest, removeFriend, createGroup, addGroupMember, updateGroupIdentity }
 }
