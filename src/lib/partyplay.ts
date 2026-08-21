@@ -195,7 +195,7 @@ export type ActiveRoomSummary = {
 
 export type PartyPlayActivity = {
   id: string
-  kind: 'friend_request' | 'friend_accepted' | 'group_added' | 'room_invite' | 'game_finished' | 'achievement' | 'report_update'
+  kind: 'friend_request' | 'friend_accepted' | 'group_added' | 'room_invite' | 'game_started' | 'your_turn' | 'game_finished' | 'achievement' | 'report_update' | 'security'
   title: string
   body: string
   payload: Record<string, unknown>
@@ -294,6 +294,8 @@ const roomErrorMessage = (code: string) => {
     INVALID_AVATAR_TIER: 'سطح آواتار معتبر نیست.',
     AVATAR_NOT_FOUND: 'این آواتار دیگر در دسترس نیست.',
     INVALID_RING_COLOR: 'رنگ قاب نئون معتبر نیست.',
+    INVALID_NOTIFICATION_CATEGORY: 'دستهٔ اعلان معتبر نیست.',
+    PUSH_SUBSCRIPTION_INVALID: 'اشتراک اعلان مرورگر معتبر نیست.',
   }
   return messages[code] || 'ارتباط با بازی کامل نشد. دوباره تلاش کن.'
 }
@@ -313,7 +315,7 @@ const knownErrorCodes = [
   'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
       'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
     'PREMIUM_FEATURE_REQUIRED', 'INVALID_MEMBERSHIP_TIER', 'INVALID_PREMIUM_DURATION',
-    'INVALID_AVATAR_FILE', 'INVALID_AVATAR_TIER', 'AVATAR_NOT_FOUND', 'INVALID_RING_COLOR',
+    'INVALID_AVATAR_FILE', 'INVALID_AVATAR_TIER', 'AVATAR_NOT_FOUND', 'INVALID_RING_COLOR', 'INVALID_NOTIFICATION_CATEGORY', 'PUSH_SUBSCRIPTION_INVALID',
     'CANNOT_BLOCK_SELF', 'CANNOT_REPORT_SELF', 'USER_BLOCKED', 'INVALID_REPORT_CATEGORY', 'REPORT_DETAILS_REQUIRED', 'REPORT_RATE_LIMITED', 'INVALID_REPORT_STATUS', 'REPORT_NOT_FOUND',
 
 ]
@@ -610,4 +612,66 @@ export function subscribeToOnlineRoom(roomId: string, onChange: () => void): Rea
 export function onlineGameType(gameId: 'mafia' | 'tic-tac-toe' | 'truth-dare' | 'snakes'): PartyPlayGameType {
   const gameTypes: Record<typeof gameId, PartyPlayGameType> = { mafia: 'mafia', 'tic-tac-toe': 'tic_tac_toe', 'truth-dare': 'truth_or_dare', snakes: 'snakes_ladders' }
   return gameTypes[gameId]
+}
+
+export type NotificationCategory = 'friend_request' | 'room_invite' | 'game_started' | 'your_turn' | 'achievement' | 'security'
+export type NotificationPreferences = {
+  browserEnabled: boolean
+  categories: Record<NotificationCategory, boolean>
+}
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  browserEnabled: false,
+  categories: {
+    friend_request: true,
+    room_invite: true,
+    game_started: true,
+    your_turn: true,
+    achievement: false,
+    security: true,
+  },
+}
+
+const asNotificationPreferences = (value: unknown): NotificationPreferences => {
+  const raw = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
+  const rawCategories = (raw.categories && typeof raw.categories === 'object' ? raw.categories : {}) as Record<string, unknown>
+  return {
+    browserEnabled: Boolean(raw.browser_enabled),
+    categories: Object.fromEntries(Object.entries(defaultNotificationPreferences.categories).map(([key, fallback]) => [key, typeof rawCategories[key] === 'boolean' ? rawCategories[key] : fallback])) as NotificationPreferences['categories'],
+  }
+}
+
+export async function loadNotificationPreferences(): Promise<NotificationPreferences> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_notification_preferences')
+  throwIfError(error)
+  return asNotificationPreferences(data)
+}
+
+export async function updateNotificationPreferences(input: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_update_notification_preferences', {
+    p_browser_enabled: input.browserEnabled ?? null,
+    p_categories: input.categories ?? null,
+  })
+  throwIfError(error)
+  return asNotificationPreferences(data)
+}
+
+export async function savePushSubscription(subscription: PushSubscription): Promise<void> {
+  const client = requireClient()
+  const serialized = subscription.toJSON()
+  const { error } = await client.rpc('partyplay_save_push_subscription', {
+    p_endpoint: subscription.endpoint,
+    p_p256dh: serialized.keys?.p256dh || null,
+    p_auth: serialized.keys?.auth || null,
+    p_expiration_time: subscription.expirationTime || null,
+  })
+  throwIfError(error)
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_remove_push_subscription', { p_endpoint: endpoint })
+  throwIfError(error)
 }

@@ -1,84 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Crown, ImagePlus, LockKeyhole, Sparkles, Upload } from 'lucide-react'
+import { Check, ImagePlus, LockKeyhole, Sparkles, Upload } from 'lucide-react'
 import type { CurrentProfile } from '../hooks/usePartyPlayData'
 import { avatarOptions, PlayerAvatar } from './SocialIdentity'
-import { loadAdminAvatarLibrary, loadAvatarCatalog, type AvatarCatalogItem, type AvatarLibraryTier, type AvatarSource, type PremiumRingColor, updateAdminAvatarLibrary, uploadAdminCustomAvatar, uploadAdminLibraryAvatar } from '../lib/partyplay'
+import { loadAvatarCatalog, type AvatarCatalogItem, type AvatarSource, type PremiumRingColor, uploadAdminCustomAvatar } from '../lib/partyplay'
+import { useLanguage } from '../i18n'
 
 type ProfileUpdate = { avatarSeed?: string; avatarLibraryId?: string; avatarMode?: AvatarSource; premiumRingEnabled?: boolean; premiumRingColor?: PremiumRingColor }
+type AvatarStudioProps = { profile: CurrentProfile; updateProfile: (updates: ProfileUpdate) => Promise<CurrentProfile>; notify: (message: string) => void; showLibraryManagement?: boolean }
 
-type AvatarStudioProps = { profile: CurrentProfile; updateProfile: (updates: ProfileUpdate) => Promise<CurrentProfile>; notify: (message: string) => void }
-
-const ringOptions: Array<{ id: PremiumRingColor; label: string }> = [
-  { id: 'violet', label: 'بنفش' }, { id: 'cyan', label: 'فیروزه‌ای' }, { id: 'pink', label: 'صورتی' }, { id: 'gold', label: 'طلایی' }, { id: 'aurora', label: 'طیفی' },
-]
-
-const message = (error: unknown) => error instanceof Error ? error.message : 'این عمل کامل نشد؛ دوباره تلاش کن.'
+const ringColors: PremiumRingColor[] = ['violet', 'cyan', 'pink', 'gold', 'aurora']
+const errorMessage = (error: unknown, fa: boolean) => error instanceof Error ? error.message : (fa ? 'این عمل کامل نشد؛ دوباره تلاش کن.' : 'We could not complete that action. Please try again.')
 
 export default function AvatarStudio({ profile, updateProfile, notify }: AvatarStudioProps) {
-  const isAdmin = profile.siteRole === 'site_admin'
-  const canUsePremium = profile.isVerified || isAdmin
-  const [catalog, setCatalog] = useState<AvatarCatalogItem[]>([])
-  const [managed, setManaged] = useState<AvatarCatalogItem[]>([])
-  const [busy, setBusy] = useState(false)
-  const [label, setLabel] = useState('')
-  const [tier, setTier] = useState<AvatarLibraryTier>('standard')
-  const [showAdmin, setShowAdmin] = useState(false)
-  const customInput = useRef<HTMLInputElement>(null)
-  const libraryInput = useRef<HTMLInputElement>(null)
-
-  const reload = async () => {
-    try {
-      const [nextCatalog, nextManaged] = await Promise.all([loadAvatarCatalog(), isAdmin ? loadAdminAvatarLibrary() : Promise.resolve([])])
-      setCatalog(nextCatalog); setManaged(nextManaged)
-    } catch (error) { notify(message(error)) }
-  }
-
+  const { language } = useLanguage(); const fa = language === 'fa'; const isAdmin = profile.siteRole === 'site_admin'; const canUsePremium = profile.isVerified || isAdmin
+  const c = fa ? { visual: 'هویت تصویری', title: 'آواتارها', description: 'یکی از آواتارهای آماده یا در صورت دسترسی، یک آواتار ویژه را انتخاب کن.', saved: 'آواتار ذخیره شد.', library: 'کتابخانهٔ تازه', manager: 'مدیریت‌شده توسط مدیر سایت', custom: 'بارگذاری آواتار شخصی مدیر', file: 'PNG، JPG، WebP یا GIF ثابت تا ۲ مگابایت', perks: 'امکانات ویژه', ring: 'قاب نئون دوحلقه‌ای', ringOpen: 'در حالت پیش‌فرض خاموش است؛ هر زمان خواستی رنگ آن را انتخاب و فعال کن.', ringLocked: 'این جلوه برای کاربران ویژه و مدیر سایت در دسترس است.', on: 'قاب روشن است', off: 'قاب خاموش است', locked: 'با فعال‌شدن وضعیت ویژه باز می‌شود.', enabled: 'قاب نئون فعال شد.', disabled: 'قاب نئون خاموش شد.', lock: 'قفل: ', avatar: 'آواتار ' } : { visual: 'VISUAL IDENTITY', title: 'Avatars', description: 'Choose a ready-made avatar, or a premium option when your account has access.', saved: 'Avatar saved.', library: 'NEW LIBRARY', manager: 'Managed by the site administrator', custom: 'Upload personal admin avatar', file: 'Static PNG, JPG, WebP or GIF up to 2 MB', perks: 'PREMIUM', ring: 'Dual neon ring', ringOpen: 'It is off by default. Choose a color and turn it on whenever you want.', ringLocked: 'This effect is available to premium players and the site administrator.', on: 'Ring is on', off: 'Ring is off', locked: 'Available when premium status is enabled.', enabled: 'Neon ring enabled.', disabled: 'Neon ring disabled.', lock: 'Locked: ', avatar: 'Avatar ' }
+  const ringLabels = fa ? ['بنفش', 'فیروزه‌ای', 'صورتی', 'طلایی', 'طیفی'] : ['Violet', 'Cyan', 'Pink', 'Gold', 'Aurora']
+  const [catalog, setCatalog] = useState<AvatarCatalogItem[]>([]); const [busy, setBusy] = useState(false); const [ringEnabled, setRingEnabled] = useState(profile.premiumRingEnabled); const [ringColor, setRingColor] = useState<PremiumRingColor>(profile.premiumRingColor); const ringRequest = useRef(0); const customInput = useRef<HTMLInputElement>(null)
+  const reload = async () => { try { setCatalog(await loadAvatarCatalog()) } catch (error) { notify(errorMessage(error, fa)) } }
   useEffect(() => { void reload() }, [isAdmin])
-
-  const chooseSeed = async (seed: string) => {
-    try { setBusy(true); await updateProfile({ avatarSeed: seed, avatarMode: 'seed' }); notify('آواتار ذخیره شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-  const chooseLibrary = async (item: AvatarCatalogItem) => {
-    if (!item.canUse) return
-    try { setBusy(true); await updateProfile({ avatarLibraryId: item.id, avatarMode: 'library' }); notify('آواتار ذخیره شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-  const uploadCustom = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; event.target.value = ''; if (!file) return
-    try { setBusy(true); await uploadAdminCustomAvatar(file); await updateProfile({ avatarMode: 'custom' }); notify('آواتار شخصی مدیر ذخیره شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-  const uploadLibrary = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]; event.target.value = ''; if (!file) return
-    if (label.trim().length < 2) { notify('برای آواتار یک نام کوتاه وارد کن.'); return }
-    try { setBusy(true); await uploadAdminLibraryAvatar({ file, label: label.trim(), tier }); setLabel(''); await reload(); notify('آواتار به کتابخانه اضافه شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-  const updateLibrary = async (item: AvatarCatalogItem, changes: { tier?: AvatarLibraryTier; isActive?: boolean }) => {
-    try { setBusy(true); await updateAdminAvatarLibrary({ avatarId: item.id, ...changes }); await reload(); notify('وضعیت آواتار به‌روز شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-  const saveRing = async (changes: { enabled?: boolean; color?: PremiumRingColor }) => {
-    if (!canUsePremium) return
-    try { setBusy(true); await updateProfile({ premiumRingEnabled: changes.enabled ?? profile.premiumRingEnabled, premiumRingColor: changes.color ?? profile.premiumRingColor }); notify('قاب نئون ذخیره شد.') } catch (error) { notify(message(error)) } finally { setBusy(false) }
-  }
-
-  const activeSeed = profile.avatarSource === 'seed' ? profile.avatarSeed : ''
-  const activeLibrary = profile.avatarSource === 'library' ? profile.avatarAssetPath : ''
-
-  return <>
-    <section className="panel setting-block-live avatar-studio">
-      <div className="section-panel-heading"><div><span className="eyebrow"><ImagePlus size={15}/> هویت تصویری</span><h2>آواتارها</h2><p>یکی از آواتارهای آماده یا در صورت دسترسی، یک آواتار ویژه را انتخاب کن.</p></div></div>
-      <div className="avatar-picker avatar-picker-seeds">{avatarOptions.map((option) => { const locked = Boolean(option.premiumOnly) && !canUsePremium; return <button key={option.id} type="button" className={`${activeSeed === option.id ? 'avatar-choice-selected ' : ''}${option.premiumOnly ? 'avatar-premium-choice ' : ''}${locked ? 'avatar-locked-choice' : ''}`} disabled={locked || busy} onClick={() => void chooseSeed(option.id)} aria-label={`${locked ? 'قفل: ' : ''}آواتار ${option.label}`}><PlayerAvatar seed={option.id} label={option.label} size="lg"/>{activeSeed === option.id && <Check size={16}/>}</button> })}</div>
-      {catalog.length > 0 && <div className="avatar-library-section"><div className="avatar-library-heading"><span>کتابخانهٔ تازه</span><small>مدیریت‌شده توسط مدیر سایت</small></div><div className="avatar-picker avatar-picker-library">{catalog.map((item) => { const selected = activeLibrary === item.assetPath; const locked = !item.canUse; return <button key={item.id} type="button" className={`${selected ? 'avatar-choice-selected ' : ''}${item.tier === 'premium' ? 'avatar-premium-choice ' : ''}${locked ? 'avatar-locked-choice' : ''}`} disabled={locked || busy} onClick={() => void chooseLibrary(item)} aria-label={`${locked ? 'قفل: ' : ''}آواتار ${item.label}`}><PlayerAvatar assetPath={item.assetPath} label={item.label} size="lg"/>{selected && <Check size={16}/>}</button> })}</div></div>}
-      {isAdmin && <div className="admin-avatar-shortcut"><input ref={customInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => void uploadCustom(event)}/><button type="button" className="secondary-button" disabled={busy} onClick={() => customInput.current?.click()}><Upload size={16}/>بارگذاری آواتار شخصی مدیر</button><small>PNG، JPG، WebP یا GIF ثابت تا ۲ مگابایت</small></div>}
-    </section>
-
-    <section className={`panel setting-block-live premium-ring-panel ${canUsePremium ? '' : 'premium-ring-locked'}`}>
-      <div className="section-panel-heading"><div><span className="eyebrow"><Sparkles size={15}/> امکانات ویژه</span><h2>قاب نئون دوحلقه‌ای</h2><p>{canUsePremium ? 'در حالت پیش‌فرض خاموش است؛ هر زمان خواستی رنگ آن را انتخاب و فعال کن.' : 'این جلوه برای کاربران ویژه و مدیر سایت در دسترس است.'}</p></div></div>
-      <div className="ring-preview-row"><PlayerAvatar seed={profile.avatarSeed} assetPath={profile.avatarAssetPath} label={profile.displayName} size="xl" premiumRingEnabled={canUsePremium && profile.premiumRingEnabled} premiumRingColor={profile.premiumRingColor}/><div><button type="button" disabled={!canUsePremium || busy} className={`premium-ring-switch ${profile.premiumRingEnabled ? 'ring-on' : ''}`} onClick={() => void saveRing({ enabled: !profile.premiumRingEnabled })}><i/><span>{profile.premiumRingEnabled ? 'قاب روشن است' : 'قاب خاموش است'}</span></button>{!canUsePremium && <small className="locked-feature-note"><LockKeyhole size={13}/>با فعال‌شدن وضعیت ویژه باز می‌شود.</small>}</div></div>
-      <div className="ring-color-picker">{ringOptions.map((option) => <button key={option.id} type="button" disabled={!canUsePremium || busy} className={`ring-color-option ring-color-${option.id} ${profile.premiumRingColor === option.id ? 'ring-color-selected' : ''}`} onClick={() => void saveRing({ color: option.id })}><i/><span>{option.label}</span>{profile.premiumRingColor === option.id && <Check size={14}/>}</button>)}</div>
-    </section>
-
-    {isAdmin && <section className="panel setting-block-live admin-avatar-library">
-      <div className="section-panel-heading"><div><span className="eyebrow"><Crown size={15}/> فقط مدیر سایت</span><h2>مدیریت کتابخانهٔ آواتارها</h2><p>هر مورد را استاندارد یا ویژه قرار بده و در صورت نیاز بدون حذف فایل غیرفعال کن.</p></div><button type="button" className="text-button" onClick={() => setShowAdmin((value) => !value)}>{showAdmin ? 'بستن' : 'باز کردن'}</button></div>
-      {showAdmin && <div className="admin-avatar-library-body"><div className="admin-avatar-upload"><input className="text-field" value={label} onChange={(event) => setLabel(event.target.value)} placeholder="نام آواتار" maxLength={48}/><div className="tier-option-row"><button type="button" className={tier === 'standard' ? 'tier-selected' : ''} onClick={() => setTier('standard')}>استاندارد</button><button type="button" className={tier === 'premium' ? 'tier-selected' : ''} onClick={() => setTier('premium')}>ویژه</button></div><input ref={libraryInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => void uploadLibrary(event)}/><button type="button" className="primary-button" disabled={busy || label.trim().length < 2} onClick={() => libraryInput.current?.click()}><Upload size={16}/>افزودن به کتابخانه</button></div><div className="admin-avatar-list">{managed.length ? managed.map((item) => <article key={item.id} className={item.isActive ? '' : 'avatar-library-inactive'}><PlayerAvatar assetPath={item.assetPath} label={item.label} size="md"/><div><strong>{item.label}</strong><small>{item.tier === 'premium' ? 'ویژه' : 'استاندارد'} · {item.isActive ? 'فعال' : 'غیرفعال'}</small></div><div className="admin-avatar-row-actions"><button type="button" disabled={busy} onClick={() => void updateLibrary(item, { tier: item.tier === 'premium' ? 'standard' : 'premium' })}>{item.tier === 'premium' ? 'استاندارد کن' : 'ویژه کن'}</button><button type="button" disabled={busy} className={item.isActive ? 'danger-action' : ''} onClick={() => void updateLibrary(item, { isActive: !item.isActive })}>{item.isActive ? 'غیرفعال' : 'فعال'}</button></div></article>) : <p className="safety-muted">هنوز آواتاری به کتابخانه اضافه نشده است.</p>}</div></div>}
-    </section>}
-  </>
+  useEffect(() => { setRingEnabled(profile.premiumRingEnabled); setRingColor(profile.premiumRingColor) }, [profile.premiumRingEnabled, profile.premiumRingColor])
+  const chooseSeed = async (seed: string) => { try { setBusy(true); await updateProfile({ avatarSeed: seed, avatarMode: 'seed' }); notify(c.saved) } catch (error) { notify(errorMessage(error, fa)) } finally { setBusy(false) } }
+  const chooseLibrary = async (item: AvatarCatalogItem) => { if (!item.canUse) return; try { setBusy(true); await updateProfile({ avatarLibraryId: item.id, avatarMode: 'library' }); notify(c.saved) } catch (error) { notify(errorMessage(error, fa)) } finally { setBusy(false) } }
+  const uploadCustom = async (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; try { setBusy(true); await uploadAdminCustomAvatar(file); await updateProfile({ avatarMode: 'custom' }); notify(fa ? 'آواتار شخصی مدیر ذخیره شد.' : 'Personal admin avatar saved.') } catch (error) { notify(errorMessage(error, fa)) } finally { setBusy(false) } }
+  const saveRing = (changes: { enabled?: boolean; color?: PremiumRingColor }) => { if (!canUsePremium) return; const previous = { enabled: ringEnabled, color: ringColor }; const next = { enabled: changes.enabled ?? ringEnabled, color: changes.color ?? ringColor }; const requestId = ++ringRequest.current; setRingEnabled(next.enabled); setRingColor(next.color); void updateProfile({ premiumRingEnabled: next.enabled, premiumRingColor: next.color }).then(() => { if (requestId === ringRequest.current && changes.enabled !== undefined) notify(next.enabled ? c.enabled : c.disabled) }).catch((error) => { if (requestId === ringRequest.current) { setRingEnabled(previous.enabled); setRingColor(previous.color); notify(errorMessage(error, fa)) } }) }
+  const activeSeed = profile.avatarSource === 'seed' ? profile.avatarSeed : ''; const activeLibrary = profile.avatarSource === 'library' ? profile.avatarAssetPath : ''
+  return <><section className="panel setting-block-live avatar-studio"><div className="section-panel-heading"><div><span className="eyebrow"><ImagePlus size={15}/> {c.visual}</span><h2>{c.title}</h2><p>{c.description}</p></div></div><div className="avatar-picker avatar-picker-seeds">{avatarOptions.map((option) => { const locked = Boolean(option.premiumOnly) && !canUsePremium; return <button key={option.id} type="button" className={`${activeSeed === option.id ? 'avatar-choice-selected ' : ''}${option.premiumOnly ? 'avatar-premium-choice ' : ''}${locked ? 'avatar-locked-choice' : ''}`} disabled={locked || busy} onClick={() => void chooseSeed(option.id)} aria-label={`${locked ? c.lock : ''}${c.avatar}${option.label}`}><PlayerAvatar seed={option.id} label={option.label} size="lg"/>{activeSeed === option.id && <Check size={16}/>}</button> })}</div>{catalog.length > 0 && <div className="avatar-library-section"><div className="avatar-library-heading"><span>{c.library}</span><small>{c.manager}</small></div><div className="avatar-picker avatar-picker-library">{catalog.map((item) => { const selected = activeLibrary === item.assetPath; const locked = !item.canUse; return <button key={item.id} type="button" className={`${selected ? 'avatar-choice-selected ' : ''}${item.tier === 'premium' ? 'avatar-premium-choice ' : ''}${locked ? 'avatar-locked-choice' : ''}`} disabled={locked || busy} onClick={() => void chooseLibrary(item)} aria-label={`${locked ? c.lock : ''}${c.avatar}${item.label}`}><PlayerAvatar assetPath={item.assetPath} label={item.label} size="lg"/>{selected && <Check size={16}/>}</button> })}</div></div>}{isAdmin && <div className="admin-avatar-shortcut"><input ref={customInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => void uploadCustom(event)}/><button type="button" className="secondary-button" disabled={busy} onClick={() => customInput.current?.click()}><Upload size={16}/>{c.custom}</button><small>{c.file}</small></div>}</section><section className={`panel setting-block-live premium-ring-panel ${canUsePremium ? '' : 'premium-ring-locked'}`}><div className="section-panel-heading"><div><span className="eyebrow"><Sparkles size={15}/> {c.perks}</span><h2>{c.ring}</h2><p>{canUsePremium ? c.ringOpen : c.ringLocked}</p></div></div><div className="ring-preview-row"><PlayerAvatar seed={profile.avatarSeed} assetPath={profile.avatarAssetPath} label={profile.displayName} size="xl" premiumRingEnabled={canUsePremium && ringEnabled} premiumRingColor={ringColor}/><div><button type="button" disabled={!canUsePremium} className={`premium-ring-switch ${ringEnabled ? 'ring-on' : ''}`} onClick={() => saveRing({ enabled: !ringEnabled })}><i/><span>{ringEnabled ? c.on : c.off}</span></button>{!canUsePremium && <small className="locked-feature-note"><LockKeyhole size={13}/>{c.locked}</small>}</div></div><div className="ring-color-picker">{ringColors.map((color, index) => <button key={color} type="button" disabled={!canUsePremium} className={`ring-color-option ring-color-${color} ${ringColor === color ? 'ring-color-selected' : ''}`} onClick={() => saveRing({ color })}><i/><span>{ringLabels[index]}</span>{ringColor === color && <Check size={14}/>}</button>)}</div></section></>
 }

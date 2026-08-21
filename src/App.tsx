@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import {
   ArrowLeft, Check, ChevronLeft, Grid2X2,
   Link2, MoonStar, Play, Plus, Sparkles,
@@ -10,38 +10,41 @@ import './arcade.css'
 import './admin.css'
 import AppShell from './app/AppShell'
 import { type AppLanguage, useLanguage } from './i18n'
-import OnlineTicTacToe from './components/OnlineTicTacToe'
-import OnlineTicTacToeRoom from './components/OnlineTicTacToeRoom'
-import OnlineTruthDare from './components/OnlineTruthDare'
-import OnlineTruthDareRoom, { TruthDareRoomSetup } from './components/OnlineTruthDareRoom'
-import OnlineMafiaRoom, { MafiaRoomSetup } from './components/OnlineMafiaRoom'
-import OnlineMafia from './components/OnlineMafia'
-import AdminConsole from './components/AdminConsole'
-import ActivityCenter from './components/ActivityCenter'
-import OnlineFullGameRoom, { FullGameSetup } from './components/OnlineFullGameRoom'
-import OnlineFullGame from './components/OnlineFullGame'
+const OnlineTicTacToe = lazy(() => import('./components/OnlineTicTacToe'))
+const OnlineTicTacToeRoom = lazy(() => import('./components/OnlineTicTacToeRoom'))
+const OnlineTruthDare = lazy(() => import('./components/OnlineTruthDare'))
+const OnlineTruthDareRoom = lazy(() => import('./components/OnlineTruthDareRoom'))
+const TruthDareRoomSetup = lazy(() => import('./components/OnlineTruthDareRoom').then((module) => ({ default: module.TruthDareRoomSetup })))
+const OnlineMafiaRoom = lazy(() => import('./components/OnlineMafiaRoom'))
+const MafiaRoomSetup = lazy(() => import('./components/OnlineMafiaRoom').then((module) => ({ default: module.MafiaRoomSetup })))
+const OnlineMafia = lazy(() => import('./components/OnlineMafia'))
+const AdminConsole = lazy(() => import('./components/AdminConsole'))
+const ActivityCenter = lazy(() => import('./components/ActivityCenter'))
+const OnlineFullGameRoom = lazy(() => import('./components/OnlineFullGameRoom'))
+const FullGameSetup = lazy(() => import('./components/OnlineFullGameRoom').then((module) => ({ default: module.FullGameSetup })))
+const OnlineFullGame = lazy(() => import('./components/OnlineFullGame'))
 import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
 import { useOnlineTruthDare } from './hooks/useOnlineTruthDare'
 import { useOnlineMafia } from './hooks/useOnlineMafia'
 import { useOnlineFullGame } from './hooks/useOnlineFullGame'
 import { usePartyPlayData } from './hooks/usePartyPlayData'
 import { useActivityFeed } from './hooks/useActivityFeed'
-import { usePlayerProgress } from './hooks/usePlayerProgress'
-import { useCommunitySafety } from './hooks/useCommunitySafety'
 import { useSessionPlayProgress, type SessionMedal } from './hooks/useSessionPlayProgress'
 import { dareCards, shuffledIndexes, truthCards } from './data/truthDareCards'
 import { GroupBadge, IdentityLabel, PlayerAvatar } from './components/SocialIdentity'
-import { ProfileSettingsPage, SocialFriendsPage, SocialGroupsPage } from './components/SocialPages'
-import OpenSourceArcade from './components/OpenSourceArcade'
-import RealTicTacToe from './components/RealTicTacToe'
-import RealLudo from './components/RealLudo'
-import RealConnectFour from './components/RealConnectFour'
-import RealUno from './components/RealUno'
-import RealSpyfall from './components/RealSpyfall'
-import RealCodenames from './components/RealCodenames'
-import RealBackgammon from './components/RealBackgammon'
-import RealHokm from './components/RealHokm'
-import RealFreecell from './components/RealFreecell'
+const ProfileSettingsPage = lazy(() => import('./components/SocialPages').then((module) => ({ default: module.ProfileSettingsPage })))
+const SocialFriendsPage = lazy(() => import('./components/SocialPages').then((module) => ({ default: module.SocialFriendsPage })))
+const SocialGroupsPage = lazy(() => import('./components/SocialPages').then((module) => ({ default: module.SocialGroupsPage })))
+const OpenSourceArcade = lazy(() => import('./components/OpenSourceArcade'))
+const RealTicTacToe = lazy(() => import('./components/RealTicTacToe'))
+const RealLudo = lazy(() => import('./components/RealLudo'))
+const RealConnectFour = lazy(() => import('./components/RealConnectFour'))
+const RealUno = lazy(() => import('./components/RealUno'))
+const RealSpyfall = lazy(() => import('./components/RealSpyfall'))
+const RealCodenames = lazy(() => import('./components/RealCodenames'))
+const RealBackgammon = lazy(() => import('./components/RealBackgammon'))
+const RealHokm = lazy(() => import('./components/RealHokm'))
+const RealFreecell = lazy(() => import('./components/RealFreecell'))
 import { gameById, publicGameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
 import type { ActiveRoomSummary, AdminTestRoom, FullPartyPlayGameType } from './lib/partyplay'
 
@@ -98,8 +101,6 @@ function App() {
   const fullGame = useOnlineFullGame()
   const sessionProgress = useSessionPlayProgress()
   const activity = useActivityFeed()
-  const playerProgress = usePlayerProgress()
-  const communitySafety = useCommunitySafety()
 
   const activeGame = localizeGame(gameById(selectedGame), language)
   const currentTheme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
@@ -155,7 +156,7 @@ function App() {
     }).catch(showOnlineError)
   }, [fullGame.refreshRoom, fullGame.room, joinOnlineRoom, mafia.refreshRoom, mafia.room, onlineRoom, truthDare.room])
 
-  const showOnlineError = (error: unknown) => setToast(error instanceof Error ? error.message : 'ارتباط با بازی کامل نشد. دوباره تلاش کن.')
+  const showOnlineError = (error: unknown) => setToast(error instanceof Error ? error.message : (language === 'fa' ? 'ارتباط با بازی کامل نشد. دوباره تلاش کن.' : 'We could not connect to the game. Please try again.'))
   const resetPractice = (game: GameId) => {
     setSelectedGame(game)
     setTruthMode('truth')
@@ -307,9 +308,9 @@ function App() {
     if (page === 'full-game-setup') return <FullGameSetup game={activeGame} pending={fullGame.pending} error={fullGame.error} onCreate={createOnlineFullGame} onBack={() => setPage('games')}/>
     if (page === 'full-game-room' && fullGame.room) return <OnlineFullGameRoom game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} error={fullGame.error} onStart={() => void fullGame.start().then(() => setPage('full-game')).catch(showOnlineError)} onBack={() => setPage('games')}/>
     if (page === 'full-game' && fullGame.room?.session) return <OnlineFullGame game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} privateState={fullGame.privateState} onSavePrivate={(state) => void fullGame.savePrivateState(state)} onApply={(state, turnUserId, status, eventType) => void fullGame.applyState(state, turnUserId, status, eventType).then(() => sessionProgress.markAction(selectedGame)).catch(showOnlineError)} onBack={() => setPage('games')}/>
-    if (page === 'friends') return <SocialFriendsPage onBack={() => setPage('home')} friends={friends} requests={requests} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} blockUser={async (userId) => { const result = await communitySafety.block(userId); await refresh(); return result }} reportUser={communitySafety.report} notify={setToast}/>
+    if (page === 'friends') return <SocialFriendsPage onBack={() => setPage('home')} friends={friends} requests={requests} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} onSocialChange={() => void refresh()} notify={setToast}/>
     if (page === 'groups') return <SocialGroupsPage onBack={() => setPage('home')} groups={groups} createGroup={createGroup} addGroupMember={addGroupMember} updateGroupIdentity={updateGroupIdentity} notify={setToast}/>
-    if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void Promise.all([refresh(), playerProgress.refresh(), communitySafety.refresh()]).catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast} progress={playerProgress.progress} progressLoading={playerProgress.loading} progressCompletion={playerProgress.completion} blocks={communitySafety.blocks} reports={communitySafety.reports} safetyLoading={communitySafety.loading} safetyBusy={communitySafety.busy} onUnblock={async (userId) => { await communitySafety.unblock(userId); await refresh(); setToast('مسدودسازی برداشته شد.') }}/>
+    if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void refresh().catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast}/>
     if (page === 'activity') return <ActivityCenter items={activity.items} loading={activity.loading} unreadCount={activity.unreadCount} onBack={() => setPage('home')} onMarkAllRead={() => void activity.markAllRead().catch(showOnlineError)} onNavigate={(destination) => setPage(destination)}/>
     if (page === 'room' && onlineRoom) return <OnlineTicTacToeRoom room={onlineRoom} currentUserId={onlineUserId} pending={onlinePending} onBack={() => setPage('home')} onStart={() => void startOnlineRoom().then(() => setPage('game')).catch(showOnlineError)} onInvite={() => { const link = `${window.location.origin}${window.location.pathname}?room=${onlineRoom.room.invite_code}`; if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(link); setToast('لینک دعوت کپی شد.') }} />
     if (page === 'truth-setup') return <TruthDareRoomSetup pending={truthDare.pending} onBack={() => setPage('games')} onCreate={createOnlineTruthDare}/>
@@ -344,17 +345,21 @@ function App() {
                   : t.app.game
 
   const overlay = <>
-    {profile?.displayName === 'بازیکن جدید' && !localStorage.getItem('partyplay-display-name') && <div className="identity-backdrop" role="presentation"><section className="identity-dialog" role="dialog" aria-modal="true" aria-label="انتخاب نام نمایشی"><span className="eyebrow"><Sparkles size={15}/> خوش اومدی</span><h2>دوستات با چه اسمی صدات کنن؟</h2><p>این نام در اتاق‌ها، دعوت‌ها و نتیجهٔ بازی نشان داده می‌شود؛ بعداً هم قابل تغییر است.</p><input className="text-field" autoFocus value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="مثلاً کیان" maxLength={40}/><button className="primary-button full-button" onClick={saveDisplayName} disabled={nameDraft.trim().length < 1}>ادامه با این نام</button></section></div>}
+    {profile?.displayName === 'بازیکن جدید' && !localStorage.getItem('partyplay-display-name') && <div className="identity-backdrop" role="presentation"><section className="identity-dialog" role="dialog" aria-modal="true" aria-label={language === 'fa' ? 'انتخاب نام نمایشی' : 'Choose display name'}><span className="eyebrow"><Sparkles size={15}/> {language === 'fa' ? 'خوش اومدی' : 'WELCOME'}</span><h2>{language === 'fa' ? 'دوستات با چه اسمی صدات کنن؟' : 'What should your friends call you?'}</h2><p>{language === 'fa' ? 'این نام در اتاق‌ها، دعوت‌ها و نتیجهٔ بازی نشان داده می‌شود؛ بعداً هم قابل تغییر است.' : 'This name appears in rooms, invitations, and game results. You can change it later.'}</p><input className="text-field" autoFocus value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder={language === 'fa' ? 'مثلاً کیان' : 'e.g. Kian'} maxLength={40}/><button className="primary-button full-button" onClick={saveDisplayName} disabled={nameDraft.trim().length < 1}>{language === 'fa' ? 'ادامه با این نام' : 'Continue with this name'}</button></section></div>}
     {sessionProgress.newMedal && <MedalCelebration medal={sessionProgress.newMedal} onDismiss={sessionProgress.dismissMedal}/>}
     {toast && <div className="toast"><Check size={18}/><span>{toast}</span><button onClick={() => setToast('')}><X size={16}/></button></div>}
   </>
 
-  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerPresence={profile?.presence} activityUnread={activity.unreadCount} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}>{renderPage()}</AppShell>
+  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerAvatarAssetPath={profile?.avatarAssetPath} playerPresence={profile?.presence} playerPremiumRingEnabled={profile?.premiumRingEnabled} playerPremiumRingColor={profile?.premiumRingColor} isAdmin={profile?.siteRole === 'site_admin'} activityUnread={activity.unreadCount} activityItems={activity.items} onMarkAllActivityRead={() => void activity.markAllRead().catch(showOnlineError)} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}><Suspense fallback={<RouteLoading/>}>{renderPage()}</Suspense></AppShell>
 }
 
+function RouteLoading() { const { language } = useLanguage(); return <section className="route-loading" aria-live="polite"><span/><strong>{language === 'fa' ? 'در حال آماده‌سازی میز بازی…' : 'Preparing your game table…'}</strong></section> }
+
 function MedalCelebration({ medal, onDismiss }: { medal: SessionMedal; onDismiss: () => void }) {
+  const { language } = useLanguage()
+  const fa = language === 'fa'
   useEffect(() => { const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onDismiss() }; window.addEventListener('keydown', closeOnEscape); return () => window.removeEventListener('keydown', closeOnEscape) }, [onDismiss])
-  return <div className="medal-backdrop" role="presentation" onClick={onDismiss}><section className={`medal-celebration medal-${medal.accent}`} role="dialog" aria-modal="true" aria-label={`مدال ${medal.title} باز شد`} onClick={(event) => event.stopPropagation()}><button className="medal-close" onClick={onDismiss} aria-label="بستن جشن مدال"><X size={18}/></button><div className="medal-burst" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div><span className="medal-main-icon">{medal.icon}</span><span className="eyebrow">مدال نمایشی باز شد</span><h2>{medal.title}</h2><p>{medal.description}</p><button className="primary-button" onClick={onDismiss}><Check size={17}/>ادامهٔ بازی</button></section></div>
+  return <div className="medal-backdrop" role="presentation" onClick={onDismiss}><section className={`medal-celebration medal-${medal.accent}`} role="dialog" aria-modal="true" aria-label={fa ? `مدال ${medal.title} باز شد` : `${medal.title} medal unlocked`} onClick={(event) => event.stopPropagation()}><button className="medal-close" onClick={onDismiss} aria-label={fa ? 'بستن جشن مدال' : 'Close medal celebration'}><X size={18}/></button><div className="medal-burst" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div><iframe className="medal-lottie" src="https://embed.lottiefiles.com/animation/A7NLwfdqzd" title="PartyPlay medal animation" loading="lazy" aria-hidden="true"/><span className="medal-main-icon">{medal.icon}</span><span className="eyebrow">{fa ? 'مدال نمایشی باز شد' : 'SHOWCASE MEDAL UNLOCKED'}</span><h2>{medal.title}</h2><p>{medal.description}</p><button className="primary-button" onClick={onDismiss}><Check size={17}/>{fa ? 'ادامهٔ بازی' : 'Continue playing'}</button></section></div>
 }
 
 function HomePage({ name, groups, friends, activeRooms, loading, onPractice, onFriendsGame, onCreateOnline, onOnlineMafia, onResumeRoom, onGames, onGroups, onFriends, started, earnedMedals }: { name: string; groups: ReturnType<typeof usePartyPlayData>['groups']; friends: ReturnType<typeof usePartyPlayData>['friends']; activeRooms: ActiveRoomSummary[]; loading: boolean; onPractice: (game: GameId) => void; onFriendsGame: (game: GameId) => void; onCreateOnline: () => void; onOnlineMafia: () => void; onResumeRoom: (room: ActiveRoomSummary) => void; onGames: () => void; onGroups: () => void; onFriends: () => void; started: ReturnType<typeof useSessionPlayProgress>['started']; earnedMedals: SessionMedal[] }) {
@@ -371,8 +376,8 @@ function HomePage({ name, groups, friends, activeRooms, loading, onPractice, onF
     <section className="quick-play"><div className="quick-content"><div className="quick-copy"><span className="pill"><MoonStar size={14}/> {isFa ? 'نقش مخفی · دورهمی خصوصی' : 'HIDDEN ROLES · PRIVATE PLAY'}</span><h2>{isFa ? 'شهر را برای مافیا جمع کن.' : 'Gather the town for Mafia.'}</h2><p>{isFa ? 'یک اتاق خصوصی ۵، ۷ یا ۹ نفره بساز؛ نقش‌ها، نوبت‌ها و روایت شب و روز با پارتی پلی است.' : 'Create a private room for 5, 7, or 9 players. PartyPlay manages roles, turns, and the night-and-day flow.'}</p><div className="quick-actions"><button className="quick-primary" onClick={onOnlineMafia}><MoonStar size={17}/>{t.home.mafiaRoom}</button><button className="quick-secondary" onClick={onGames}><Link2 size={18}/>{t.home.viewAll}</button></div></div><div className="quick-signal"><span className="quick-signal-dot" aria-hidden="true"/><div><strong>{isFa ? 'اتاق‌های خصوصی' : 'Private rooms'}</strong><span>{isFa ? 'دوستانت را با لینک دعوت کن' : 'Invite friends with one link'}</span></div></div></div></section>
     {activeRooms.length > 0 && <section className="continue-play-panel"><div className="continue-play-heading"><div><span className="eyebrow"><Radio size={14}/>{isFa ? 'ادامهٔ بازی' : 'CONTINUE PLAYING'}</span><h2>{isFa ? 'اتاق‌های فعالت منتظر تو هستند' : 'Your active rooms are waiting'}</h2></div><span>{activeRooms.length}</span></div><div className="continue-room-list">{activeRooms.map((room) => { const gameId = room.gameType === 'tic_tac_toe' ? 'tic-tac-toe' : room.gameType === 'truth_or_dare' ? 'truth-dare' : room.gameType as GameId; const game = localizeGame(gameById(gameId), language); const GameIcon = game.icon; return <button key={room.id} onClick={() => onResumeRoom(room)}><span className={`continue-room-icon accent-${game.accent}`}><GameIcon size={18}/></span><span><strong>{room.name}</strong><small>{game.title} · {room.status === 'lobby' ? (isFa ? 'لابی آمادهٔ ورود' : 'Lobby ready') : (isFa ? 'بازی در جریان' : 'Game in progress')}</small></span><ArrowLeft size={17}/></button> })}</div></section>}
     <section className="section-heading"><div><span className="eyebrow">{t.home.availableGames}</span><h2>{t.home.chooseAndPlay}</h2></div><button className="text-button" onClick={onGames}>{t.home.viewAll} <ArrowLeft size={16}/></button></section>
-    <section className="games-grid">{localizedGames.map((game) => <GameCard key={game.id} game={game} action={game.id === 'freecell' ? (isFa ? 'شروع بازی' : 'Start game') : t.games.playBot} friendAction={t.games.friendsRoom} onPlay={() => onPractice(game.id)} onFriendPlay={game.online ? () => onFriendsGame(game.id) : undefined} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)} />)}</section>
-    <section className="dashboard-grid"><div className="panel friends-panel"><div className="panel-heading"><div><span className="eyebrow">{t.home.friends}</span><h2>{friends.length ? (isFa ? 'دوستان آمادهٔ بازی' : 'Friends ready to play') : t.home.noFriends}</h2></div><button className="text-button" onClick={onFriends}>{t.home.manage} <ArrowLeft size={15}/></button></div>{friends.length ? <div className="home-friend-stack">{friends.slice(0, 3).map((friend) => <button key={friend.id} className="home-friend-row" onClick={onFriends}><PlayerAvatar seed={friend.avatarSeed} label={friend.displayName} size="sm" status={friend.presence}/><span><IdentityLabel label={friend.displayName} isVerified={friend.isVerified} membershipTier={friend.membershipTier} siteRole={friend.siteRole} compact/><small dir="ltr">@{friend.username}</small></span><span className={`friend-presence presence-${friend.presence}`}>{presenceLabel(friend.presence)}</span></button>)}</div> : <div className="empty-inline"><UserPlus size={22}/><p>{t.empty.friends}</p><button className="text-button" onClick={onFriends}>{t.home.addFriend} <ArrowLeft size={15}/></button></div>}</div><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">{t.app.onlineGame}</span><h2>{isFa ? 'دوز دونفره' : 'Two-player Tic-Tac-Toe'}</h2></div></div><div className="empty-inline"><Grid2X2 size={22}/><p>{isFa ? 'اتاق بساز، لینک را بفرست و پس از ورود حریف بازی را شروع کن.' : 'Create a room, share the link, and start once your opponent arrives.'}</p><button className="text-button" onClick={onCreateOnline}>{isFa ? 'ساخت اتاق' : 'Create room'} <ArrowLeft size={15}/></button></div></div></section>
+    <section className="games-grid">{localizedGames.slice(0, 4).map((game) => <GameCard key={game.id} game={game} action={game.id === 'freecell' ? (isFa ? 'شروع بازی' : 'Start game') : t.games.playBot} friendAction={t.games.friendsRoom} onPlay={() => onPractice(game.id)} onFriendPlay={game.online ? () => onFriendsGame(game.id) : undefined} started={Boolean(started[game.id])} earned={earnedMedals.some((medal) => medal.game === game.id)} />)}</section>
+    <section className="dashboard-grid"><div className="panel friends-panel"><div className="panel-heading"><div><span className="eyebrow">{t.home.friends}</span><h2>{friends.length ? (isFa ? 'دوستان آمادهٔ بازی' : 'Friends ready to play') : t.home.noFriends}</h2></div><button className="text-button" onClick={onFriends}>{t.home.manage} <ArrowLeft size={15}/></button></div>{friends.length ? <div className="home-friend-stack">{friends.slice(0, 3).map((friend) => <button key={friend.id} className="home-friend-row" onClick={onFriends}><PlayerAvatar seed={friend.avatarSeed} assetPath={friend.avatarAssetPath} label={friend.displayName} size="sm" status={friend.presence} premiumRingEnabled={friend.premiumRingEnabled} premiumRingColor={friend.premiumRingColor}/><span><IdentityLabel label={friend.displayName} isVerified={friend.isVerified} membershipTier={friend.membershipTier} siteRole={friend.siteRole} compact/><small dir="ltr">@{friend.username}</small></span><span className={`friend-presence presence-${friend.presence}`}>{presenceLabel(friend.presence)}</span></button>)}</div> : <div className="empty-inline"><UserPlus size={22}/><p>{t.empty.friends}</p><button className="text-button" onClick={onFriends}>{t.home.addFriend} <ArrowLeft size={15}/></button></div>}</div><div className="panel activity-panel"><div className="panel-heading"><div><span className="eyebrow">{t.app.onlineGame}</span><h2>{isFa ? 'دوز دونفره' : 'Two-player Tic-Tac-Toe'}</h2></div></div><div className="empty-inline"><Grid2X2 size={22}/><p>{isFa ? 'اتاق بساز، لینک را بفرست و پس از ورود حریف بازی را شروع کن.' : 'Create a room, share the link, and start once your opponent arrives.'}</p><button className="text-button" onClick={onCreateOnline}>{isFa ? 'ساخت اتاق' : 'Create room'} <ArrowLeft size={15}/></button></div></div></section>
     <section className="section-heading compact-heading"><div><span className="eyebrow">{isFa ? 'جمع‌های همیشگی' : 'YOUR CREWS'}</span><h2>{t.home.groups}</h2></div><button className="text-button" onClick={onGroups}>{t.home.manage} <ArrowLeft size={16}/></button></section>
     {loading ? <div className="panel loading-panel">{t.app.loading}</div> : groups.length ? <section className="groups-strip">{groups.map((group) => <button className="group-card group-violet" key={group.id} onClick={onGroups}><GroupBadge seed={group.avatarSeed}/><span><strong>{group.name}</strong><small>{group.memberCount} {isFa ? 'عضو' : 'members'}</small></span><ChevronLeft size={18}/></button>)}<button className="group-add" onClick={onGroups}><Plus size={21}/><span>{t.home.createGroup}</span></button></section> : <button className="empty-group-cta" onClick={onGroups}><span><Plus size={22}/></span><strong>{t.home.noGroups}</strong><small>{t.empty.groups}</small></button>}
   </>
