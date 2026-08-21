@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local notification keys and temporary source inspection files
+.env.vapid.local
+.tmp/
