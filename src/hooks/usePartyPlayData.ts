@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { IdentityTier, SiteRole } from '../components/SocialIdentity'
-import { loadMyActiveRooms, PartyPlayError, type ActiveRoomSummary } from '../lib/partyplay'
+import { loadMyActiveRooms, PartyPlayError, type ActiveRoomSummary, type AvatarSource, type PremiumRingColor } from '../lib/partyplay'
 import { supabase } from '../lib/supabase'
 
 export type Presence = 'online' | 'away' | 'busy' | 'offline'
@@ -10,6 +10,10 @@ export type CurrentProfile = {
   username: string
   displayName: string
   avatarSeed: string
+  avatarAssetPath: string | null
+  avatarSource: AvatarSource
+  premiumRingEnabled: boolean
+  premiumRingColor: PremiumRingColor
   presence: Presence
   themePreference: 'system' | 'light' | 'dark'
   allowFriendRequests: boolean
@@ -20,7 +24,7 @@ export type CurrentProfile = {
   profileTagline: string
 }
 
-export type SocialProfile = Pick<CurrentProfile, 'id' | 'username' | 'displayName' | 'avatarSeed' | 'presence' | 'membershipTier' | 'premiumUntil' | 'isVerified' | 'siteRole' | 'profileTagline'>
+export type SocialProfile = Pick<CurrentProfile, 'id' | 'username' | 'displayName' | 'avatarSeed' | 'avatarAssetPath' | 'avatarSource' | 'premiumRingEnabled' | 'premiumRingColor' | 'presence' | 'membershipTier' | 'premiumUntil' | 'isVerified' | 'siteRole' | 'profileTagline'>
 
 export type CurrentGroupMember = SocialProfile & { role: 'owner' | 'admin' | 'member' }
 export type CurrentGroup = {
@@ -37,7 +41,7 @@ export type FriendRequest = { id: string; requester: SocialProfile; createdAt: s
 
 const normalizeProfile = (value: unknown): CurrentProfile => {
   const profile = value as {
-    id: string; username: string; display_name: string; avatar_seed: string; presence: Presence
+    id: string; username: string; display_name: string; avatar_seed: string; avatar_asset_path?: string | null; avatar_source?: AvatarSource; premium_ring_enabled?: boolean; premium_ring_color?: PremiumRingColor; presence: Presence
     theme_preference: CurrentProfile['themePreference']; allow_friend_requests?: boolean; membership_tier?: IdentityTier; premium_until?: string | null; is_verified?: boolean; site_role?: SiteRole; profile_tagline?: string
   }
   return {
@@ -45,6 +49,10 @@ const normalizeProfile = (value: unknown): CurrentProfile => {
     username: profile.username,
     displayName: profile.display_name,
     avatarSeed: profile.avatar_seed || 'mint',
+    avatarAssetPath: profile.avatar_asset_path || null,
+    avatarSource: profile.avatar_source === 'library' || profile.avatar_source === 'custom' ? profile.avatar_source : 'seed',
+    premiumRingEnabled: profile.premium_ring_enabled === true,
+    premiumRingColor: ['violet', 'cyan', 'pink', 'gold', 'aurora'].includes(profile.premium_ring_color || '') ? profile.premium_ring_color as PremiumRingColor : 'violet',
     presence: profile.presence || 'online',
     themePreference: profile.theme_preference || 'system',
     allowFriendRequests: profile.allow_friend_requests !== false,
@@ -57,9 +65,9 @@ const normalizeProfile = (value: unknown): CurrentProfile => {
 }
 
 const normalizeSocialProfile = (value: unknown): SocialProfile => {
-  const profile = value as { id: string; username: string; display_name: string; avatar_seed: string; presence: Presence; membership_tier?: IdentityTier; premium_until?: string | null; is_verified?: boolean; site_role?: SiteRole; profile_tagline?: string }
+  const profile = value as { id: string; username: string; display_name: string; avatar_seed: string; avatar_asset_path?: string | null; avatar_source?: AvatarSource; premium_ring_enabled?: boolean; premium_ring_color?: PremiumRingColor; presence: Presence; membership_tier?: IdentityTier; premium_until?: string | null; is_verified?: boolean; site_role?: SiteRole; profile_tagline?: string }
   const isVerified = profile.is_verified === true || (profile.membership_tier === 'premium' && (!profile.premium_until || new Date(profile.premium_until).getTime() > Date.now()))
-  return { id: profile.id, username: profile.username, displayName: profile.display_name, avatarSeed: profile.avatar_seed || 'mint', presence: profile.presence || 'offline', membershipTier: isVerified ? 'premium' : 'standard', premiumUntil: profile.premium_until || null, isVerified, siteRole: profile.site_role === 'site_admin' ? 'site_admin' : 'member', profileTagline: (isVerified || profile.site_role === 'site_admin') ? (profile.profile_tagline || '') : '' }
+  return { id: profile.id, username: profile.username, displayName: profile.display_name, avatarSeed: profile.avatar_seed || 'mint', avatarAssetPath: profile.avatar_asset_path || null, avatarSource: profile.avatar_source === 'library' || profile.avatar_source === 'custom' ? profile.avatar_source : 'seed', premiumRingEnabled: profile.premium_ring_enabled === true, premiumRingColor: ['violet', 'cyan', 'pink', 'gold', 'aurora'].includes(profile.premium_ring_color || '') ? profile.premium_ring_color as PremiumRingColor : 'violet', presence: profile.presence || 'offline', membershipTier: isVerified ? 'premium' : 'standard', premiumUntil: profile.premium_until || null, isVerified, siteRole: profile.site_role === 'site_admin' ? 'site_admin' : 'member', profileTagline: (isVerified || profile.site_role === 'site_admin') ? (profile.profile_tagline || '') : '' }
 }
 
 const rpc = async <T,>(name: string, args: Record<string, unknown>) => {
@@ -106,7 +114,7 @@ export function usePartyPlayData() {
         ...memberships.map((row) => row.user_id),
       ])]
       const { data: profilesData, error: profilesError } = socialIds.length
-        ? await         supabase.from('pp_profiles').select('id, username, display_name, avatar_seed, presence, membership_tier, premium_until, site_role, profile_tagline').in('id', socialIds)
+        ? await         supabase.from('pp_profiles').select('id, username, display_name, avatar_seed, avatar_asset_path, presence, membership_tier, premium_until, site_role, profile_tagline, premium_ring_enabled, premium_ring_color').in('id', socialIds)
 
         : { data: [], error: null }
       if (profilesError) throw new PartyPlayError(profilesError.message)
@@ -121,7 +129,7 @@ export function usePartyPlayData() {
         const groupMemberships = memberships.filter((membership) => membership.group_id === group.id)
         const members = groupMemberships.map((membership) => {
           const person = membership.user_id === authData.user.id
-            ? { id: nextProfile.id, username: nextProfile.username, displayName: nextProfile.displayName, avatarSeed: nextProfile.avatarSeed, presence: nextProfile.presence, membershipTier: nextProfile.membershipTier, premiumUntil: nextProfile.premiumUntil, isVerified: nextProfile.isVerified, siteRole: nextProfile.siteRole, profileTagline: nextProfile.profileTagline }
+            ? { id: nextProfile.id, username: nextProfile.username, displayName: nextProfile.displayName, avatarSeed: nextProfile.avatarSeed, avatarAssetPath: nextProfile.avatarAssetPath, avatarSource: nextProfile.avatarSource, premiumRingEnabled: nextProfile.premiumRingEnabled, premiumRingColor: nextProfile.premiumRingColor, presence: nextProfile.presence, membershipTier: nextProfile.membershipTier, premiumUntil: nextProfile.premiumUntil, isVerified: nextProfile.isVerified, siteRole: nextProfile.siteRole, profileTagline: nextProfile.profileTagline }
             : people.get(membership.user_id)
           return person ? { ...person, role: membership.role } : null
         }).filter((member): member is CurrentGroupMember => Boolean(member))
@@ -142,13 +150,17 @@ export function usePartyPlayData() {
     return () => listener.subscription.unsubscribe()
   }, [refresh])
 
-  const updateProfile = useCallback(async (updates: { displayName?: string; avatarSeed?: string; presence?: Presence; allowFriendRequests?: boolean; profileTagline?: string }) => {
+  const updateProfile = useCallback(async (updates: { displayName?: string; avatarSeed?: string; avatarLibraryId?: string; avatarMode?: AvatarSource; premiumRingEnabled?: boolean; premiumRingColor?: PremiumRingColor; presence?: Presence; allowFriendRequests?: boolean; profileTagline?: string }) => {
     const data = await rpc<unknown>('partyplay_update_profile', {
       p_display_name: updates.displayName ?? null,
       p_avatar_seed: updates.avatarSeed ?? null,
       p_presence: updates.presence ?? null,
       p_allow_friend_requests: updates.allowFriendRequests ?? null,
       p_profile_tagline: updates.profileTagline ?? null,
+      p_avatar_library_id: updates.avatarLibraryId ?? null,
+      p_avatar_mode: updates.avatarMode ?? (updates.avatarSeed ? 'seed' : null),
+      p_premium_ring_enabled: updates.premiumRingEnabled ?? null,
+      p_premium_ring_color: updates.premiumRingColor ?? null,
     })
     const next = normalizeProfile(data)
     setProfile(next)

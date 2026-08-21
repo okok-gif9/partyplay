@@ -225,6 +225,20 @@ export type PlayerProgress = {
   achievements: PlayerAchievement[]
 }
 
+export type AvatarLibraryTier = 'standard' | 'premium'
+export type PremiumRingColor = 'violet' | 'cyan' | 'pink' | 'gold' | 'aurora'
+export type AvatarCatalogItem = { id: string; label: string; assetPath: string; tier: AvatarLibraryTier; canUse: boolean; isActive?: boolean; createdAt?: string }
+export type AvatarSource = 'seed' | 'library' | 'custom'
+
+const avatarFileRules: Record<string, string> = {
+  'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif',
+}
+
+const assertAvatarFile = (file: File) => {
+  if (!(file instanceof File) || !avatarFileRules[file.type] || file.size <= 0 || file.size > 2 * 1024 * 1024) throw new PartyPlayError('INVALID_AVATAR_FILE')
+  return avatarFileRules[file.type]
+}
+
 export class PartyPlayError extends Error {
   readonly code: string
   constructor(code: string) { super(roomErrorMessage(code)); this.code = code }
@@ -276,6 +290,10 @@ const roomErrorMessage = (code: string) => {
     MODERATION_REASON_REQUIRED: 'دلیل اقدام باید دست‌کم ۸ نویسه داشته باشد.',
     INVALID_RESTRICTION_DURATION: 'مدت محدودیت انتخاب‌شده معتبر نیست.',
     INVALID_MODERATION_ACTION: 'اقدام مدیریتی انتخاب‌شده معتبر نیست.',
+    INVALID_AVATAR_FILE: 'فایل آواتار باید PNG، JPG، WebP یا GIF ثابت و حداکثر ۲ مگابایت باشد.',
+    INVALID_AVATAR_TIER: 'سطح آواتار معتبر نیست.',
+    AVATAR_NOT_FOUND: 'این آواتار دیگر در دسترس نیست.',
+    INVALID_RING_COLOR: 'رنگ قاب نئون معتبر نیست.',
   }
   return messages[code] || 'ارتباط با بازی کامل نشد. دوباره تلاش کن.'
 }
@@ -295,6 +313,7 @@ const knownErrorCodes = [
   'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
       'CANNOT_MODERATE_SELF', 'MODERATION_REASON_REQUIRED', 'INVALID_RESTRICTION_DURATION', 'INVALID_MODERATION_ACTION',
     'PREMIUM_FEATURE_REQUIRED', 'INVALID_MEMBERSHIP_TIER', 'INVALID_PREMIUM_DURATION',
+    'INVALID_AVATAR_FILE', 'INVALID_AVATAR_TIER', 'AVATAR_NOT_FOUND', 'INVALID_RING_COLOR',
     'CANNOT_BLOCK_SELF', 'CANNOT_REPORT_SELF', 'USER_BLOCKED', 'INVALID_REPORT_CATEGORY', 'REPORT_DETAILS_REQUIRED', 'REPORT_RATE_LIMITED', 'INVALID_REPORT_STATUS', 'REPORT_NOT_FOUND',
 
 ]
@@ -503,6 +522,46 @@ export async function loadMyCommunityReports() { const client = requireClient();
 export async function loadAdminCommunityReports(status: CommunityReportStatus | 'all' = 'open') { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_reports', { p_status: status, p_limit: 50 }); throwIfError(error); return (data || []) as AdminCommunityReport[] }
 export async function updateAdminCommunityReport(input: { reportId: string; status: 'reviewing' | 'closed'; note: string }) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_update_report', { p_report_id: input.reportId, p_status: input.status, p_note: input.note }); throwIfError(error); return data as { id: string; status: CommunityReportStatus; admin_note: string; reviewed_at: string } }
 export async function adminSetMembership(input: AdminMembershipInput) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_set_membership', { p_user_id: input.userId, p_tier: input.tier, p_duration_days: input.durationDays ?? null, p_reason: input.reason }); throwIfError(error); return data as AdminMembershipResult }
+
+export const avatarAssetUrl = (assetPath?: string | null) => {
+  if (!assetPath || !supabase) return null
+  return supabase.storage.from('partyplay-avatars').getPublicUrl(assetPath).data.publicUrl
+}
+
+export async function loadAvatarCatalog() {
+  const client = requireClient(); const { data, error } = await client.rpc('partyplay_avatar_catalog'); throwIfError(error)
+  return ((data || []) as Array<{ id: string; label: string; asset_path: string; tier: AvatarLibraryTier; can_use: boolean }>).map((item) => ({ id: item.id, label: item.label, assetPath: item.asset_path, tier: item.tier, canUse: item.can_use })) satisfies AvatarCatalogItem[]
+}
+
+export async function loadAdminAvatarLibrary() {
+  const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_avatar_library'); throwIfError(error)
+  return ((data || []) as Array<{ id: string; label: string; asset_path: string; tier: AvatarLibraryTier; is_active: boolean; created_at: string }>).map((item) => ({ id: item.id, label: item.label, assetPath: item.asset_path, tier: item.tier, canUse: true, isActive: item.is_active, createdAt: item.created_at })) satisfies AvatarCatalogItem[]
+}
+
+export async function uploadAdminCustomAvatar(file: File) {
+  const client = requireClient(); const extension = assertAvatarFile(file); const { data: authData, error: authError } = await client.auth.getUser(); throwIfError(authError)
+  if (!authData.user) throw new PartyPlayError('NOT_AUTHENTICATED')
+  const path = `custom/${authData.user.id}/profile.${extension}`
+  const { error: uploadError } = await client.storage.from('partyplay-avatars').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' })
+  throwIfError(uploadError)
+  const { data, error } = await client.rpc('partyplay_admin_set_custom_avatar', { p_asset_path: path }); if (error) { await client.storage.from('partyplay-avatars').remove([path]); throwIfError(error) }
+  return { assetPath: (data as { asset_path: string }).asset_path }
+}
+
+export async function uploadAdminLibraryAvatar(input: { file: File; label: string; tier: AvatarLibraryTier }) {
+  const client = requireClient(); const extension = assertAvatarFile(input.file); const path = `library/${commandId().toLowerCase()}.${extension}`
+  const { error: uploadError } = await client.storage.from('partyplay-avatars').upload(path, input.file, { upsert: false, contentType: input.file.type, cacheControl: '3600' }); throwIfError(uploadError)
+  const { data, error } = await client.rpc('partyplay_admin_register_avatar', { p_label: input.label, p_asset_path: path, p_tier: input.tier })
+  if (error) { await client.storage.from('partyplay-avatars').remove([path]); throwIfError(error) }
+  const item = data as { id: string; label: string; asset_path: string; tier: AvatarLibraryTier; is_active: boolean }
+  return { id: item.id, label: item.label, assetPath: item.asset_path, tier: item.tier, canUse: true, isActive: item.is_active } satisfies AvatarCatalogItem
+}
+
+export async function updateAdminAvatarLibrary(input: { avatarId: string; label?: string; tier?: AvatarLibraryTier; isActive?: boolean }) {
+  const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_update_avatar', { p_avatar_id: input.avatarId, p_label: input.label ?? null, p_tier: input.tier ?? null, p_is_active: input.isActive ?? null }); throwIfError(error)
+  const item = data as { id: string; label: string; asset_path: string; tier: AvatarLibraryTier; is_active: boolean }
+  return { id: item.id, label: item.label, assetPath: item.asset_path, tier: item.tier, canUse: true, isActive: item.is_active } satisfies AvatarCatalogItem
+}
 export async function loadAdminSession() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_session'); throwIfError(error); return data as AdminSession }
 export async function loadAdminDashboard() { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_dashboard'); throwIfError(error); return data as AdminDashboard }
 export async function loadAdminUsers(query = '', limit = 25, offset = 0) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_admin_users', { p_query: query || null, p_limit: limit, p_offset: offset }); throwIfError(error); return data as AdminUserList }

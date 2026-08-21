@@ -1,4 +1,5 @@
 import { BadgeCheck, Compass, Cuboid, Flag, Orbit, ShieldCheck, Sparkles, Star, Triangle } from 'lucide-react'
+import { avatarAssetUrl, type PremiumRingColor } from '../lib/partyplay'
 import mintAvatar from '../assets/avatars/mint.png'
 import coralAvatar from '../assets/avatars/coral.png'
 import skyAvatar from '../assets/avatars/sky.png'
@@ -49,11 +50,13 @@ export type SiteRole = 'member' | 'site_admin'
 
 export type IdentityMeta = { isVerified?: boolean; membershipTier?: IdentityTier; siteRole?: SiteRole; tagline?: string }
 
-type PlayerAvatarProps = { seed?: string | null; label: string; size?: 'sm' | 'md' | 'lg' | 'xl'; status?: 'online' | 'away' | 'busy' | 'offline'; className?: string }
+type PlayerAvatarProps = { seed?: string | null; assetPath?: string | null; label: string; size?: 'sm' | 'md' | 'lg' | 'xl'; status?: 'online' | 'away' | 'busy' | 'offline'; premiumRingEnabled?: boolean; premiumRingColor?: PremiumRingColor; className?: string }
 
-export function PlayerAvatar({ seed = 'mint', label, size = 'md', status, className = '' }: PlayerAvatarProps) {
+export function PlayerAvatar({ seed = 'mint', assetPath, label, size = 'md', status, premiumRingEnabled = false, premiumRingColor = 'violet', className = '' }: PlayerAvatarProps) {
   const option = avatarOptions.find((candidate) => candidate.id === seed) || avatarOptions[0]
-  return <span className={`identity-avatar avatar-character avatar-${option.id} avatar-${size} ${status && status !== 'offline' ? `avatar-status-${status}` : ''} ${className}`} aria-label={`آواتار ${label}: ${option.label}`} role="img"><img src={option.asset} alt="" draggable={false}/>{status && status !== 'offline' && <b className="avatar-presence"/>}</span>
+  const source = avatarAssetUrl(assetPath) || option.asset
+  const ringClass = premiumRingEnabled ? `avatar-neon-ring avatar-ring-${premiumRingColor}` : ''
+  return <span className={`identity-avatar avatar-character avatar-${option.id} avatar-${size} ${ringClass} ${status && status !== 'offline' ? `avatar-status-${status}` : ''} ${className}`} aria-label={`آواتار ${label}: ${option.label}`} role="img"><img src={source} alt="" draggable={false}/>{status && status !== 'offline' && <b className="avatar-presence"/>}</span>
 }
 
 export function IdentityLabel({ label, isVerified = false, membershipTier = 'standard', siteRole = 'member', tagline, compact = false }: { label: string; isVerified?: boolean; membershipTier?: IdentityTier; siteRole?: SiteRole; tagline?: string; compact?: boolean }) {
