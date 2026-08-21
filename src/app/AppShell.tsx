@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react'
-import { Gamepad2, Globe2, Home, Menu, Moon, Settings2, ShieldCheck, Sun, UserRound, Users, UsersRound } from 'lucide-react'
+import { Flag, Gamepad2, Globe2, Home, Menu, Moon, Settings2, ShieldCheck, Sun, UserRound, Users } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import type { PartyPlayActivity, PremiumRingColor } from '../lib/partyplay'
 import { PlayerAvatar } from '../components/SocialIdentity'
@@ -54,9 +54,9 @@ export default function AppShell({
     { id: 'home', label: t.app.home, icon: Home },
     { id: 'games', label: t.app.games, icon: Gamepad2 },
     { id: 'friends', label: t.app.friends, icon: Users },
-    { id: 'groups', label: t.app.groups, icon: UsersRound },
+    { id: 'groups', label: t.app.groups, icon: Flag },
   ]
-  const mobileItems: Array<{ id: ShellDestination; label: string; icon: typeof Home }> = [...navItems, { id: 'profile', label: t.app.profile, icon: UserRound }, ...(isAdmin ? [{ id: 'admin' as const, label: language === 'fa' ? 'مدیریت' : 'Admin', icon: ShieldCheck }] : [])]
+  const mobileItems: Array<{ id: ShellDestination; label: string; icon: typeof Home }> = [...navItems, { id: 'profile', label: t.app.profile, icon: UserRound }, ...(isAdmin ? [{ id: 'admin' as const, label: t.app.admin, icon: ShieldCheck }] : [])]
 
   const navigate = (destination: ShellDestination) => {
     onNavigate(destination)

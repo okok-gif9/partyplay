@@ -1,0 +1,19 @@
+{
+  "name": "PartyPlay | بازی گروهی آنلاین",
+  "short_name": "PartyPlay",
+  "description": "Private online group games for friends.",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f7ff",
+  "theme_color": "#6246ea",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

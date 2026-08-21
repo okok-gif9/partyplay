@@ -566,3 +566,41 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(98, 70, 234,
 .account-identity-card { align-content: start; }.account-settings-nav { width: 100%; display: grid; gap: 6px; margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line); text-align: start; }.account-settings-nav button { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 9px; width: 100%; padding: 9px; border: 1px solid transparent; border-radius: 12px; color: var(--muted); background: transparent; text-align: start; transition: transform 150ms var(--signal-ease-out), color 150ms var(--signal-ease-out), background 150ms var(--signal-ease-out), border-color 150ms var(--signal-ease-out); }.account-settings-nav button > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: currentColor; background: color-mix(in srgb, currentColor 11%, transparent); }.account-settings-nav button div { display: grid; gap: 2px; min-width: 0; }.account-settings-nav button b { color: var(--text); font-size: .73rem; }.account-settings-nav button small { overflow: hidden; color: var(--muted); font-size: .63rem; text-overflow: ellipsis; white-space: nowrap; }.account-settings-nav button:hover { transform: translateX(-2px); color: var(--violet); background: color-mix(in srgb, var(--violet) 7%, transparent); }.account-settings-nav button.settings-nav-active { color: var(--violet); border-color: color-mix(in srgb, var(--violet) 28%, var(--line)); background: linear-gradient(135deg, var(--violet-soft), color-mix(in srgb, var(--violet) 7%, var(--surface))); }.account-settings-nav button.settings-nav-active b { color: var(--violet); }.account-settings-nav button:active { transform: scale(.98); }
 @media (max-width: 900px) { .account-identity-card { grid-template-columns: auto minmax(0, 1fr); justify-items: start; text-align: start; }.account-identity-card > .identity-label { align-items: flex-start; }.account-identity-card > p, .account-identity-card > .presence-label { grid-column: 2; }.account-settings-nav { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }.account-settings-nav button { min-width: 0; } }
 @media (max-width: 540px) { .account-settings-nav { grid-template-columns: 1fr; }.account-settings-nav button { padding: 10px; } }
+
+/* Refined game-lobby system */
+:root { --ease-out: cubic-bezier(.23, 1, .32, 1); --ease-in-out: cubic-bezier(.77, 0, .175, 1); }
+button, .game-card, .group-card, .group-add { transition-timing-function: var(--ease-out); }
+button:active:not(:disabled) { transform: scale(.97); }
+
+.lobby-welcome-row { margin-bottom: 18px; }
+.lobby-welcome-row .eyebrow { letter-spacing: .05em; }
+.mafia-hero { min-height: 276px; margin-bottom: 34px; }
+.mafia-hero .quick-content { max-width: 870px; grid-template-columns: minmax(0, 1fr) minmax(215px, 270px); }
+.mafia-hero-mark { position: absolute; z-index: -1; width: clamp(180px, 23vw, 300px); height: auto; inset-inline-end: -38px; inset-block-end: -73px; opacity: .13; filter: invert(1) brightness(2); transform: rotate(-12deg); pointer-events: none; }
+.mafia-hero::after { width: 370px; inset-inline-end: -68px; inset-block-end: 38px; opacity: .7; }
+.quick-signal { min-height: 74px; gap: 12px; }
+.launch-glyph { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 auto; overflow: hidden; border-radius: 15px; background: rgba(255,255,255,.08); box-shadow: inset 0 1px rgba(255,255,255,.12); }
+.launch-glyph canvas { display: block; width: 48px !important; height: 48px !important; }
+.home-games-heading { margin-top: 4px; }
+.featured-games-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.featured-games-grid .game-card { min-height: 238px; }
+.featured-games-grid .game-card:nth-child(1) { --accent: var(--pink); --accent-soft: var(--pink-soft); }
+.featured-games-grid .game-card:nth-child(2) { --accent: var(--cyan); --accent-soft: var(--cyan-soft); }
+.featured-games-grid .game-card:nth-child(3) { --accent: var(--gold); --accent-soft: var(--gold-soft); }
+.featured-games-grid .game-card::before { content: ''; position: absolute; inset: auto 0 0; height: 3px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: .55; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mafia-hero { animation: lobby-rise .36s var(--ease-out) both; }
+  .featured-games-grid .game-card { animation: card-rise .32s var(--ease-out) both; }
+  .featured-games-grid .game-card:nth-child(2) { animation-delay: .055s; }
+  .featured-games-grid .game-card:nth-child(3) { animation-delay: .11s; }
+  .mafia-hero-mark { animation: mark-drift 8s var(--ease-in-out) infinite alternate; }
+}
+@keyframes lobby-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes card-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes mark-drift { from { transform: rotate(-12deg) translateY(0); } to { transform: rotate(-8deg) translateY(-10px); } }
+
+@media (max-width: 1160px) { .featured-games-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .mafia-hero .quick-content { grid-template-columns: 1fr; }.quick-signal { width: min(100%, 300px); }.mafia-hero-mark { width: 210px; inset-inline-end: -42px; }.featured-games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .mafia-hero { min-height: 0; padding: 26px 22px; }.featured-games-grid { grid-template-columns: 1fr; }.mafia-hero-mark { opacity: .09; }.quick-actions { width: 100%; }.quick-actions > button { flex: 1; }.launch-glyph { width: 42px; height: 42px; }.launch-glyph canvas { width: 42px !important; height: 42px !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }

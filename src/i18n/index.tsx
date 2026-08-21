@@ -53,6 +53,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = language
     document.documentElement.dir = dir
+    document.title = language === 'fa' ? 'پارتی پلی | بازی گروهی آنلاین' : 'PartyPlay | Online Group Games'
   }, [dir, language])
 
   const setPreference = useCallback((nextPreference: LanguagePreference) => {

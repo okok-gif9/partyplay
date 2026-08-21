@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://okok-gif9.github.io/partyplay/sitemap.xml
