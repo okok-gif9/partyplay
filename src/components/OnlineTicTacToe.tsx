@@ -1,3 +1,4 @@
+import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import { LoaderCircle, RotateCcw, Trophy, Wifi } from 'lucide-react'
 import type { LoadedRoom, PartyPlaySession, TicTacToeMark, TicTacToeState } from '../lib/partyplay'
 
@@ -15,6 +16,9 @@ const displayMark = (value: TicTacToeMark | null) => value || ''
 const playerLabel = (name: string) => name.trim().charAt(0) || 'پ'
 
 const playerTone = (mark: TicTacToeMark) => mark === 'X' ? 'pink' : 'cyan'
+
+// Ready-made community animation from LottieFiles, referenced remotely to keep the bundle light.
+const CONFETTI_ASSET = 'https://assets4.lottiefiles.com/datafiles/U1I3rWEyksM9cCH/data.json'
 
 export default function OnlineTicTacToe({ room, session, currentUserId, pending, onMove, onRematch }: OnlineTicTacToeProps) {
   const state = session.state as TicTacToeState
@@ -59,7 +63,8 @@ export default function OnlineTicTacToe({ room, session, currentUserId, pending,
         <span className={`turn-badge ${myMark ? `mark-${myMark}` : ''}`}>{session.status === 'running' ? (session.turn_user_id === xUserId ? 'X' : 'O') : winningMark || '—'}</span>
         <p>{message}</p>
       </div>
-      <div className="tic-board" aria-label="صفحهٔ آنلاین بازی دوز">
+      {session.status === 'finished' && session.winner_id === currentUserId && <div className="win-celebration" aria-hidden="true"><DotLottieReact src={CONFETTI_ASSET} autoplay loop={false} renderConfig={{ autoResize: true }} /></div>}
+      <div className={`tic-board ${session.status === 'finished' ? 'board-finished' : ''}`} aria-label="صفحهٔ آنلاین بازی دوز">
         {board.map((cell, index) => <button
           key={index}
           className={`tic-cell ${cell ? `mark-${cell}` : ''}`}

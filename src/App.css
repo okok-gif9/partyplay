@@ -619,3 +619,24 @@ button:active:not(:disabled) { transform: scale(.97); }
 .room-discovery-actions { display: flex; gap: 9px; flex-wrap: wrap; flex-shrink: 0; }
 @media (max-width: 780px) { .lobby-header-actions { justify-content: flex-start; } .room-discovery-panel { align-items: flex-start; flex-direction: column; } .room-discovery-actions { width: 100%; } .room-discovery-actions button { flex: 1; } }
 @media (max-width: 520px) { .connection-badge small { white-space: normal; } .lobby-header-actions { width: 100%; } .lobby-header-actions .create-button { flex: 1; } .room-discovery-panel { padding: 18px; } }
+
+/* Game motion layer: GPU-friendly transforms plus a ready-made Lottie win moment. */
+.online-tic-layout { position: relative; isolation: isolate; }
+.online-tic-layout::before { content: ''; position: absolute; inset: -12% 8%; z-index: -1; pointer-events: none; opacity: .28; background: radial-gradient(circle at 25% 30%, var(--cyan-soft), transparent 30%), radial-gradient(circle at 78% 70%, var(--violet-soft), transparent 30%); animation: game-ambient-drift 12s ease-in-out infinite alternate; }
+.board-panel { position: relative; }
+.turn-message { transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+.turn-message:has(.turn-badge.mark-X), .turn-message:has(.turn-badge.mark-O) { animation: turn-arrive .28s var(--ease-out); }
+.tic-cell { position: relative; overflow: hidden; transition: transform .16s var(--ease-out), box-shadow .16s var(--ease-out), background .16s var(--ease-out); }
+.tic-cell:not(:disabled):hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 24px rgba(12, 21, 53, .16); }
+.tic-cell.mark-X, .tic-cell.mark-O { animation: mark-pop .28s var(--ease-out); }
+.board-finished .tic-cell { cursor: default; }
+.board-finished .tic-cell.mark-X, .board-finished .tic-cell.mark-O { filter: saturate(1.12); }
+.win-celebration { position: absolute; z-index: 3; inset: -42px -28px auto; height: 190px; pointer-events: none; display: grid; place-items: center; opacity: .94; }
+.win-celebration canvas { width: 100%; max-width: 520px; height: 190px; }
+.player-card { transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out), border-color .2s var(--ease-out); }
+.player-card.current-player { animation: player-glow 2.2s ease-in-out infinite; }
+@keyframes mark-pop { 0% { opacity: .35; transform: scale(.72) rotate(-5deg); } 70% { transform: scale(1.12) rotate(2deg); } 100% { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes turn-arrive { from { opacity: .65; transform: translateY(5px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes player-glow { 0%, 100% { box-shadow: 0 8px 24px rgba(10, 18, 48, .08); } 50% { box-shadow: 0 12px 32px color-mix(in srgb, var(--cyan) 22%, transparent); } }
+@keyframes game-ambient-drift { from { transform: translate3d(-1%, -1%, 0) scale(1); } to { transform: translate3d(1%, 1%, 0) scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .online-tic-layout::before, .player-card.current-player { animation: none; } .win-celebration { display: none; } }
