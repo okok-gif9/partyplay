@@ -604,3 +604,18 @@ button:active:not(:disabled) { transform: scale(.97); }
 @media (max-width: 900px) { .mafia-hero .quick-content { grid-template-columns: 1fr; }.quick-signal { width: min(100%, 300px); }.mafia-hero-mark { width: 210px; inset-inline-end: -42px; }.featured-games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .mafia-hero { min-height: 0; padding: 26px 22px; }.featured-games-grid { grid-template-columns: 1fr; }.mafia-hero-mark { opacity: .09; }.quick-actions { width: 100%; }.quick-actions > button { flex: 1; }.launch-glyph { width: 42px; height: 42px; }.launch-glyph canvas { width: 42px !important; height: 42px !important; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+/* Direct-play lobby refresh */
+.lobby-header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.connection-badge { display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 7px; row-gap: 1px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--surface) 86%, transparent); color: var(--ink); box-shadow: 0 10px 25px rgba(4, 9, 24, .08); }
+.connection-badge small { grid-column: 2; color: var(--muted); font-size: .68rem; white-space: nowrap; }
+.connection-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--muted); box-shadow: 0 0 0 4px color-mix(in srgb, var(--muted) 13%, transparent); }
+.connection-badge.is-online .connection-dot { background: var(--lime); box-shadow: 0 0 0 4px color-mix(in srgb, var(--lime) 15%, transparent), 0 0 14px var(--lime); }
+.connection-badge.is-online { border-color: color-mix(in srgb, var(--lime) 28%, var(--line)); }
+.connection-badge.is-offline { opacity: .82; }
+.room-discovery-panel { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin: 0 0 30px; padding: 22px 24px; border: 1px solid color-mix(in srgb, var(--cyan) 26%, var(--line)); border-radius: 22px; background: radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 35%), linear-gradient(120deg, color-mix(in srgb, var(--surface) 92%, var(--cyan)), var(--surface)); box-shadow: 0 18px 45px rgba(6, 14, 39, .10); }
+.room-discovery-copy { max-width: 670px; }
+.room-discovery-copy h2 { margin: 7px 0 5px; font-size: clamp(1.1rem, 2vw, 1.45rem); }
+.room-discovery-copy p { margin: 0; color: var(--muted); line-height: 1.8; font-size: .87rem; }
+.room-discovery-actions { display: flex; gap: 9px; flex-wrap: wrap; flex-shrink: 0; }
+@media (max-width: 780px) { .lobby-header-actions { justify-content: flex-start; } .room-discovery-panel { align-items: flex-start; flex-direction: column; } .room-discovery-actions { width: 100%; } .room-discovery-actions button { flex: 1; } }
+@media (max-width: 520px) { .connection-badge small { white-space: normal; } .lobby-header-actions { width: 100%; } .lobby-header-actions .create-button { flex: 1; } .room-discovery-panel { padding: 18px; } }
