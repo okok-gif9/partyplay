@@ -8,7 +8,10 @@ import './App.css'
 import './mafia.css'
 import './arcade.css'
 import './admin.css'
+import './account.css'
 import AppShell from './app/AppShell'
+import ProfileBioEditor from './components/ProfileBioEditor'
+import PlayerSocialOverview from './components/PlayerSocialOverview'
 import { type AppLanguage, useLanguage } from './i18n'
 const OnlineTicTacToe = lazy(() => import('./components/OnlineTicTacToe'))
 const OnlineTicTacToeRoom = lazy(() => import('./components/OnlineTicTacToeRoom'))
@@ -23,6 +26,7 @@ const ActivityCenter = lazy(() => import('./components/ActivityCenter'))
 const OnlineFullGameRoom = lazy(() => import('./components/OnlineFullGameRoom'))
 const FullGameSetup = lazy(() => import('./components/OnlineFullGameRoom').then((module) => ({ default: module.FullGameSetup })))
 const OnlineFullGame = lazy(() => import('./components/OnlineFullGame'))
+const PartyRoomChatPanel = lazy(() => import('./components/PartyRoomChatPanel'))
 import { useOnlineTicTacToe } from './hooks/useOnlineTicTacToe'
 import { useOnlineTruthDare } from './hooks/useOnlineTruthDare'
 import { useOnlineMafia } from './hooks/useOnlineMafia'
@@ -47,7 +51,7 @@ const RealBackgammon = lazy(() => import('./components/RealBackgammon'))
 const RealHokm = lazy(() => import('./components/RealHokm'))
 const RealFreecell = lazy(() => import('./components/RealFreecell'))
 import { gameById, publicGameCatalog, type GameDefinition, type PartyGameId } from './data/gameCatalog'
-import type { ActiveRoomSummary, AdminTestRoom, FullPartyPlayGameType } from './lib/partyplay'
+import { acceptPartyPlayInvite, declinePartyPlayInvite, inviteFriendToLobby, type ActiveRoomSummary, type AdminTestRoom, type FullPartyPlayGameType, type MafiaRoomSettings, type PartyPlayActivity, type TruthDareRoomSettings } from './lib/partyplay'
 
 type Page = 'home' | 'games' | 'friends' | 'groups' | 'profile' | 'activity' | 'admin' | 'room' | 'game' | 'arcade-game' | 'truth-setup' | 'truth-room' | 'truth-game' | 'mafia-setup' | 'mafia-room' | 'mafia-game' | 'full-game-setup' | 'full-game-room' | 'full-game'
 type ThemePreference = 'system' | 'light' | 'dark'
@@ -85,6 +89,7 @@ function App() {
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [selectedGame, setSelectedGame] = useState<GameId>('tic-tac-toe')
   const [toast, setToast] = useState('')
+  const [inviteRoomId, setInviteRoomId] = useState<string | null>(null)
   const [browserOnline, setBrowserOnline] = useState(() => navigator.onLine)
   const [nameDraft, setNameDraft] = useState('')
   const [truthMode, setTruthMode] = useState<'truth' | 'dare'>('truth')
@@ -96,7 +101,7 @@ function App() {
   const [mafiaPhase, setMafiaPhase] = useState<PracticePhase>('setup')
   const [mafiaRole, setMafiaRole] = useState('')
   const [mafiaVote, setMafiaVote] = useState<string | null>(null)
-  const { profile, groups, friends, requests, activeRooms, loading, refresh, updateProfile, lookupProfile, sendFriendRequest, respondToRequest, removeFriend, createGroup, addGroupMember, updateGroupIdentity } = usePartyPlayData()
+  const { profile, groups, friends, requests, activeRooms, loading, refresh, updateProfile, lookupProfile, sendFriendRequest, respondToRequest, removeFriend, createFriendsRoom, createGroup, addGroupMember, updateGroupIdentity } = usePartyPlayData()
   const { room: onlineRoom, currentUserId: onlineUserId, pending: onlinePending, createRoom: createOnlineRoom, joinRoom: joinOnlineRoom, start: startOnlineRoom, move: makeOnlineMove, refreshRoom: refreshOnlineTicTacToe } = useOnlineTicTacToe()
   const truthDare = useOnlineTruthDare()
   const mafia = useOnlineMafia()
@@ -132,6 +137,12 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
   useEffect(() => { if (profile && !nameDraft) setNameDraft(profile.displayName) }, [profile, nameDraft])
+  useEffect(() => {
+    if (!profile || !['online', 'in_game'].includes(profile.presence)) return
+    const inPlayView = ['room', 'game', 'arcade-game', 'truth-room', 'truth-game', 'mafia-room', 'mafia-game', 'full-game-room', 'full-game'].includes(page)
+    const nextPresence = inPlayView ? 'in_game' : 'online'
+    if (profile.presence !== nextPresence) void updateProfile({ presence: nextPresence }).catch(() => undefined)
+  }, [page, profile, updateProfile])
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('room')
     if (!inviteCode || onlineRoom || truthDare.room || mafia.room) return
@@ -224,12 +235,12 @@ function App() {
       setToast('لابی خصوصی آماده شد؛ دوستت می‌تواند از فهرست اتاق‌ها یا با کد کوتاه وارد شود.')
     }).catch(showOnlineError)
   }
-  const createOnlineTruthDare = (capacity: number) => {
+  const createOnlineTruthDare = (capacity: number, settings: TruthDareRoomSettings) => {
     sessionProgress.markStarted('truth-dare')
     setSelectedGame('truth-dare')
-    void truthDare.createRoom(capacity).then(() => {
+    void truthDare.createRoom(capacity, settings).then(() => {
       setPage('truth-room')
-      setToast('لابی جرئت‌وحقیقت آماده شد؛ لینک را برای جمع بفرست.')
+      setToast('لابی جرئت‌وحقیقت آماده شد؛ بازیکن‌ها را از فهرست دوستان دعوت کن.')
     }).catch(showOnlineError)
   }
   const createOnlineFullGame = (capacity: number) => {
@@ -238,15 +249,15 @@ function App() {
     sessionProgress.markStarted(selectedGame)
     void fullGame.createRoom(gameType, `میز ${gameById(selectedGame).title}`, capacity).then(() => {
       setPage('full-game-room')
-      setToast('لابی خصوصی آماده شد؛ لینک دعوت را برای دوستانت بفرست.')
+      setToast('لابی خصوصی آماده شد؛ دوستان را از داخل فهرست دوستان دعوت کن.')
     }).catch(showOnlineError)
   }
-  const createOnlineMafia = (capacity: number) => {
+  const createOnlineMafia = (capacity: number, settings: MafiaRoomSettings) => {
     sessionProgress.markStarted('mafia')
     setSelectedGame('mafia')
-    void mafia.createRoom('میز مافیا', capacity).then(() => {
+    void mafia.createRoom('میز مافیا', capacity, settings).then(() => {
       setPage('mafia-room')
-      setToast('لابی مافیا آماده شد؛ لینک دعوت را برای بازیکن‌ها بفرست.')
+      setToast('لابی مافیا آماده شد؛ بازیکن‌ها را از داخل فهرست دوستان دعوت کن.')
     }).catch(showOnlineError)
   }
   const resumeActiveRoom = (room: ActiveRoomSummary) => {
@@ -270,6 +281,71 @@ function App() {
       setSelectedGame(gameId)
       void fullGame.refreshRoom(room.id).then(() => setPage(room.status === 'lobby' ? 'full-game-room' : 'full-game')).catch(showOnlineError)
     }
+  }
+
+  const inviteFriendToPlay = async (friendId: string, game: 'tic-tac-toe' | 'mafia' | 'truth-dare') => {
+    if (inviteRoomId) {
+      await inviteFriendToLobby(inviteRoomId, friendId)
+      await activity.refresh()
+      setToast(language === 'fa' ? 'دعوت به همین لابی برای دوستت فرستاده شد.' : 'Invite sent to this friend for the current lobby.')
+      return
+    }
+    const gameType = game === 'mafia' ? 'mafia' : game === 'truth-dare' ? 'truth_or_dare' : 'tic_tac_toe'
+    const capacity = game === 'mafia' ? 5 : 2
+    const room = await createFriendsRoom(gameType, friendId, capacity)
+    if (game === 'mafia') {
+      await mafia.refreshRoom(room.room_id)
+      setSelectedGame('mafia')
+      setPage('mafia-room')
+    } else if (game === 'truth-dare') {
+      await truthDare.refreshRoom(room.room_id)
+      setSelectedGame('truth-dare')
+      setPage('truth-room')
+    } else {
+      await refreshOnlineTicTacToe(room.room_id)
+      setSelectedGame('tic-tac-toe')
+      setPage('room')
+    }
+    setToast(language === 'fa' ? 'دعوت فرستاده شد؛ دوستت می‌تواند از اعلان‌ها وارد لابی شود.' : 'Invite sent. Your friend can join the lobby from Notifications.')
+  }
+
+  const openRoomFriendPicker = (roomId: string) => { setInviteRoomId(roomId); setPage('friends') }
+
+  const acceptGameInvite = async (item: PartyPlayActivity) => {
+    const inviteId = typeof item.payload.invite_id === 'string' ? item.payload.invite_id : ''
+    if (!inviteId) return
+    const accepted = await acceptPartyPlayInvite(inviteId)
+    const gameType = typeof item.payload.game_type === 'string' ? item.payload.game_type : 'tic_tac_toe'
+    if (gameType === 'mafia') {
+      await mafia.refreshRoom(accepted.room_id)
+      setSelectedGame('mafia')
+      setPage(accepted.status === 'playing' ? 'mafia-game' : 'mafia-room')
+    } else if (gameType === 'truth_or_dare') {
+      await truthDare.refreshRoom(accepted.room_id)
+      setSelectedGame('truth-dare')
+      setPage(accepted.status === 'playing' ? 'truth-game' : 'truth-room')
+    } else {
+      const fullGameId = fullGameIdByRoomType[gameType as FullPartyPlayGameType]
+      if (fullGameId) {
+        await fullGame.refreshRoom(accepted.room_id)
+        setSelectedGame(fullGameId)
+        setPage(accepted.status === 'playing' ? 'full-game' : 'full-game-room')
+      } else {
+        await refreshOnlineTicTacToe(accepted.room_id)
+        setSelectedGame('tic-tac-toe')
+        setPage(accepted.status === 'playing' ? 'game' : 'room')
+      }
+    }
+    await activity.refresh()
+    setToast(language === 'fa' ? 'به دعوت بازی پیوستی.' : 'You joined the game invite.')
+  }
+
+  const declineGameInvite = async (item: PartyPlayActivity) => {
+    const inviteId = typeof item.payload.invite_id === 'string' ? item.payload.invite_id : ''
+    if (!inviteId) return
+    await declinePartyPlayInvite(inviteId)
+    await activity.refresh()
+    setToast(language === 'fa' ? 'دعوت بازی رد شد.' : 'Game invite declined.')
   }
 
   const openAdminRoom = (room: AdminTestRoom) => {
@@ -317,18 +393,18 @@ function App() {
     if (page === 'games') return <GamesPage onBack={() => setPage('home')} onPractice={startPractice} onFriendsGame={openFriendsGame} onOnlineTicTacToe={createOnlineTicTacToe} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
     if (page === 'arcade-game') return <OpenSourceArcade game={activeGame} onBack={() => setPage('games')}/>
     if (page === 'full-game-setup') return <FullGameSetup game={activeGame} pending={fullGame.pending} error={fullGame.error} onCreate={createOnlineFullGame} onBack={() => setPage('games')}/>
-    if (page === 'full-game-room' && fullGame.room) return <OnlineFullGameRoom game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} error={fullGame.error} onStart={() => void fullGame.start().then(() => setPage('full-game')).catch(showOnlineError)} onBack={() => setPage('games')}/>
-    if (page === 'full-game' && fullGame.room?.session) return <OnlineFullGame game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} privateState={fullGame.privateState} onSavePrivate={(state) => void fullGame.savePrivateState(state)} onApply={(state, turnUserId, status, eventType) => void fullGame.applyState(state, turnUserId, status, eventType).then(() => sessionProgress.markAction(selectedGame)).catch(showOnlineError)} onBack={() => setPage('games')}/>
-    if (page === 'friends') return <SocialFriendsPage onBack={() => setPage('home')} friends={friends} requests={requests} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} onSocialChange={() => void refresh()} notify={setToast}/>
+    if (page === 'full-game-room' && fullGame.room) return <OnlineFullGameRoom game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} error={fullGame.error} onStart={() => void fullGame.start().then(() => setPage('full-game')).catch(showOnlineError)} onBack={() => setPage('games')} onRefresh={() => fullGame.refreshRoom(fullGame.room!.room.id)} onInviteFriends={() => openRoomFriendPicker(fullGame.room!.room.id)}/>
+    if (page === 'full-game' && fullGame.room?.session) return <><OnlineFullGame game={activeGame} room={fullGame.room} currentUserId={fullGame.currentUserId} pending={fullGame.pending} privateState={fullGame.privateState} onSavePrivate={(state) => void fullGame.savePrivateState(state)} onApply={(state, turnUserId, status, eventType) => void fullGame.applyState(state, turnUserId, status, eventType).then(() => sessionProgress.markAction(selectedGame)).catch(showOnlineError)} onBack={() => setPage('games')}/><PartyRoomChatPanel roomId={fullGame.room.room.id} currentUserId={fullGame.currentUserId}/></>
+    if (page === 'friends') return <SocialFriendsPage onBack={() => { setInviteRoomId(null); setPage('home') }} friends={friends} requests={requests} currentUserId={profile?.id || null} lookupProfile={lookupProfile} sendFriendRequest={sendFriendRequest} respondToRequest={respondToRequest} removeFriend={removeFriend} onSocialChange={() => void refresh()} onInviteToPlay={inviteFriendToPlay} existingRoomInvite={!!inviteRoomId} notify={setToast}/>
     if (page === 'groups') return <SocialGroupsPage onBack={() => setPage('home')} groups={groups} createGroup={createGroup} addGroupMember={addGroupMember} updateGroupIdentity={updateGroupIdentity} notify={setToast}/>
-    if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void refresh().catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast}/>
-    if (page === 'activity') return <ActivityCenter items={activity.items} loading={activity.loading} unreadCount={activity.unreadCount} onBack={() => setPage('home')} onMarkAllRead={() => void activity.markAllRead().catch(showOnlineError)} onNavigate={(destination) => setPage(destination)}/>
-    if (page === 'room' && onlineRoom) return <OnlineTicTacToeRoom room={onlineRoom} currentUserId={onlineUserId} pending={onlinePending} onBack={() => setPage('home')} onStart={() => void startOnlineRoom().then(() => setPage('game')).catch(showOnlineError)} onInvite={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(onlineRoom.room.invite_code); setToast('کد کوتاه اتاق کپی شد؛ لینک لازم نیست.') }} />
+    if (page === 'profile') return <ProfileSettingsPage onBack={() => setPage('home')} profile={profile} loading={loading} onRetry={() => void refresh().catch(showOnlineError)} updateProfile={updateProfile} theme={themePreference} onTheme={setThemePreference} notify={setToast} profileExtras={<><ProfileBioEditor profile={profile} onSaved={async () => { await refresh() }}/>{profile && <PlayerSocialOverview currentUserId={profile.id}/>}</>}/>
+    if (page === 'activity') return <ActivityCenter items={activity.items} loading={activity.loading} unreadCount={activity.unreadCount} onBack={() => setPage('home')} onMarkAllRead={() => void activity.markAllRead().catch(showOnlineError)} onNavigate={(destination) => setPage(destination)} onAcceptInvite={(item) => void acceptGameInvite(item).catch(showOnlineError)} onDeclineInvite={(item) => void declineGameInvite(item).catch(showOnlineError)}/>
+    if (page === 'room' && onlineRoom) return <OnlineTicTacToeRoom room={onlineRoom} currentUserId={onlineUserId} pending={onlinePending} onBack={() => setPage('home')} onStart={() => void startOnlineRoom().then(() => setPage('game')).catch(showOnlineError)} onInvite={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(onlineRoom.room.invite_code); setToast('کد کوتاه اتاق کپی شد؛ لینک لازم نیست.') }} onInviteFriends={() => openRoomFriendPicker(onlineRoom.room.id)} onRefresh={() => refreshOnlineTicTacToe(onlineRoom.room.id)}/>
     if (page === 'truth-setup') return <TruthDareRoomSetup pending={truthDare.pending} onBack={() => setPage('games')} onCreate={createOnlineTruthDare}/>
     if (page === 'mafia-setup') return <MafiaRoomSetup pending={mafia.pending} error={mafia.error} onCreate={createOnlineMafia}/>
-    if (page === 'truth-room' && truthDare.room) return <OnlineTruthDareRoom room={truthDare.room} currentUserId={truthDare.currentUserId} pending={truthDare.pending} onBack={() => setPage('home')} onStart={() => void truthDare.start().then(() => setPage('truth-game')).catch(showOnlineError)} onInvite={() => { const link = `${window.location.origin}${window.location.pathname}?room=${truthDare.room!.room.invite_code}`; if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(link); setToast('لینک دعوت کپی شد.') }}/>
-    if (page === 'mafia-room' && mafia.room) return <OnlineMafiaRoom room={mafia.room} currentUserId={mafia.currentUserId} pending={mafia.pending} error={mafia.error} onBack={() => setPage('games')} onStart={() => void mafia.start().then(() => setPage('mafia-game')).catch(showOnlineError)}/>
-    if (page === 'truth-game' && truthDare.room?.session && truthDare.currentUserId) return <section className="game-page accent-gold"><div className="game-topline"><button className="back-link" onClick={() => setPage('home')}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>بازی آنلاین</div></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Sparkles size={21}/></span><div><strong>جرئت یا حقیقت</strong><span>{truthDare.room.room.name}</span></div></div></div><OnlineTruthDare room={truthDare.room} session={truthDare.room.session} messages={truthDare.messages} currentUserId={truthDare.currentUserId} pending={truthDare.pending} onChoose={(choice) => void truthDare.choose(choice).then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onNextTurn={() => void truthDare.nextTurn().then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onFinish={() => void truthDare.finish().catch(showOnlineError)} onSendMessage={(body) => void truthDare.sendMessage(body).catch(showOnlineError)} onToggleReaction={(messageId, reaction) => void truthDare.toggleReaction(messageId, reaction).catch(showOnlineError)}/></section>
+    if (page === 'truth-room' && truthDare.room) return <OnlineTruthDareRoom room={truthDare.room} currentUserId={truthDare.currentUserId} pending={truthDare.pending} onBack={() => setPage('home')} onStart={() => void truthDare.start().then(() => setPage('truth-game')).catch(showOnlineError)} onInvite={() => { if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(truthDare.room!.room.invite_code); setToast('کد اتاق کپی شد؛ لینک لازم نیست.') }} onInviteFriends={() => openRoomFriendPicker(truthDare.room!.room.id)} onRefresh={() => truthDare.refreshRoom(truthDare.room!.room.id)}/>
+    if (page === 'mafia-room' && mafia.room) return <OnlineMafiaRoom room={mafia.room} currentUserId={mafia.currentUserId} pending={mafia.pending} error={mafia.error} onBack={() => setPage('games')} onStart={() => void mafia.start().then(() => setPage('mafia-game')).catch(showOnlineError)} onRefresh={() => mafia.refreshRoom(mafia.room!.room.id)} onInviteFriends={() => openRoomFriendPicker(mafia.room!.room.id)}/>
+    if (page === 'truth-game' && truthDare.room?.session && truthDare.currentUserId) return <section className="game-page accent-gold"><div className="game-topline"><button className="back-link" onClick={() => setPage('home')}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>بازی آنلاین</div></div><div className="game-header"><div className="game-header-title"><span className="game-icon"><Sparkles size={21}/></span><div><strong>جرئت یا حقیقت</strong><span>{truthDare.room.room.name}</span></div></div></div><OnlineTruthDare room={truthDare.room} session={truthDare.room.session} messages={truthDare.messages} scoreboard={truthDare.scoreboard} currentUserId={truthDare.currentUserId} pending={truthDare.pending} onChoose={(choice) => void truthDare.choose(choice).then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onNextTurn={() => void truthDare.nextTurn().then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onPass={() => void truthDare.pass().then(() => sessionProgress.markAction('truth-dare')).catch(showOnlineError)} onRate={(roundNo, score) => void truthDare.rate(roundNo, score).catch(showOnlineError)} onFinish={() => void truthDare.finish().catch(showOnlineError)} onSendMessage={(body) => void truthDare.sendMessage(body).catch(showOnlineError)} onToggleReaction={(messageId, reaction) => void truthDare.toggleReaction(messageId, reaction).catch(showOnlineError)}/></section>
     if (page === 'mafia-game' && mafia.room?.session && mafia.privateView) return <section className="game-page accent-pink"><div className="game-topline"><button className="back-link" onClick={() => setPage('home')}><ChevronLeft size={17}/>خانه</button><div className="live-status"><span className="pulse-dot"/>بازی آنلاین</div></div><OnlineMafia room={mafia.room} view={mafia.privateView} messages={mafia.messages} teamMessages={mafia.teamMessages} speakerReactions={mafia.speakerReactions} currentUserId={mafia.currentUserId} pending={mafia.pending} error={mafia.error} onAcknowledge={() => void mafia.acknowledgeRole().then(() => sessionProgress.markAction('mafia')).catch(showOnlineError)} onSetSpeaking={(mode) => void mafia.setSpeaking(mode).catch(showOnlineError)} onNextSpeaker={() => void mafia.nextSpeaker().catch(showOnlineError)} onSendDayMessage={(body) => void mafia.sendDayMessage(body).catch(showOnlineError)} onReact={(reaction) => void mafia.react(reaction).catch(showOnlineError)} onVote={(choice, targetUserId) => void mafia.vote(choice, targetUserId).catch(showOnlineError)} onResolveVote={() => void mafia.resolveVote().catch(showOnlineError)} onOpenNight={() => void mafia.openNight().catch(showOnlineError)} onSendTeamMessage={(body) => void mafia.sendTeamMessage(body).catch(showOnlineError)} onSubmitNightAction={(targetUserId) => void mafia.submitNightAction(targetUserId).catch(showOnlineError)} onAdvanceNight={() => void mafia.advanceNight().catch(showOnlineError)}/></section>
     if (page === 'game' && selectedGame === 'tic-tac-toe' && !(onlineRoom?.session && onlineUserId)) return <RealTicTacToe onBack={() => setPage('games')} onFriends={createOnlineTicTacToe}/>
     if (page === 'game' && selectedGame === 'ludo') return <RealLudo onBack={() => setPage('games')} onFriends={() => openFriendsGame('ludo')}/>
@@ -339,7 +415,7 @@ function App() {
     if (page === 'game' && selectedGame === 'backgammon') return <RealBackgammon onBack={() => setPage('games')} onFriends={() => openFriendsGame('backgammon')}/>
     if (page === 'game' && selectedGame === 'hokm') return <RealHokm onBack={() => setPage('games')}/>
     if (page === 'game' && selectedGame === 'freecell') return <RealFreecell onBack={() => setPage('games')}/>
-    if (page === 'game') return <GamePage game={activeGame} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} onOnlineMove={(index) => void makeOnlineMove(index).then(() => sessionProgress.markAction('tic-tac-toe')).catch(showOnlineError)} onRestart={() => resetPractice(selectedGame)} truthMode={truthMode} truthIndex={truthIndex} truthDone={truthDone} onDraw={drawCard} onTruthDone={() => { setTruthDone((value) => value + 1); sessionProgress.markAction('truth-dare') }} mafiaPhase={mafiaPhase} mafiaRole={mafiaRole} mafiaVote={mafiaVote} onBeginMafia={beginMafia} onVote={(name) => { setMafiaVote(name); sessionProgress.markAction('mafia') }} onBack={() => setPage('home')} />
+    if (page === 'game') return <><GamePage game={activeGame} onlineRoom={onlineRoom} onlineUserId={onlineUserId} onlinePending={onlinePending} onOnlineMove={(index) => void makeOnlineMove(index).then(() => sessionProgress.markAction('tic-tac-toe')).catch(showOnlineError)} onRestart={() => resetPractice(selectedGame)} truthMode={truthMode} truthIndex={truthIndex} truthDone={truthDone} onDraw={drawCard} onTruthDone={() => { setTruthDone((value) => value + 1); sessionProgress.markAction('truth-dare') }} mafiaPhase={mafiaPhase} mafiaRole={mafiaRole} mafiaVote={mafiaVote} onBeginMafia={beginMafia} onVote={(name) => { setMafiaVote(name); sessionProgress.markAction('mafia') }} onBack={() => setPage('home')} />{selectedGame === 'tic-tac-toe' && onlineRoom?.session && onlineUserId && <PartyRoomChatPanel roomId={onlineRoom.room.id} currentUserId={onlineUserId}/>}</>
     return <HomePage browserOnline={browserOnline} name={playerName} activeRooms={activeRooms} onPractice={startPractice} onFriendsGame={openFriendsGame} onOnlineMafia={() => setPage('mafia-setup')} onResumeRoom={resumeActiveRoom} onGames={() => setPage('games')} started={sessionProgress.started} earnedMedals={sessionProgress.earnedMedals} />
   }
 
@@ -361,7 +437,7 @@ function App() {
     {toast && <div className="toast"><Check size={18}/><span>{toast}</span><button onClick={() => setToast('')}><X size={16}/></button></div>}
   </>
 
-  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerAvatarAssetPath={profile?.avatarAssetPath} playerPresence={profile?.presence} playerPremiumRingEnabled={profile?.premiumRingEnabled} playerPremiumRingColor={profile?.premiumRingColor} isAdmin={profile?.siteRole === 'site_admin'} activityUnread={activity.unreadCount} activityItems={activity.items} onMarkAllActivityRead={() => void activity.markAllRead().catch(showOnlineError)} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => setPage(destination)} overlay={overlay}><Suspense fallback={<RouteLoading/>}>{renderPage()}</Suspense></AppShell>
+  return <AppShell activePage={page} pageTitle={pageTitle} theme={currentTheme} playerName={playerName} playerAvatarSeed={playerAvatarSeed} playerAvatarAssetPath={profile?.avatarAssetPath} playerPresence={profile?.presence} playerPremiumRingEnabled={profile?.premiumRingEnabled} playerPremiumRingColor={profile?.premiumRingColor} isAdmin={profile?.siteRole === 'site_admin'} activityUnread={activity.unreadCount} activityItems={activity.items} onMarkAllActivityRead={() => void activity.markAllRead().catch(showOnlineError)} onAcceptGameInvite={(item) => void acceptGameInvite(item).catch(showOnlineError)} onDeclineGameInvite={(item) => void declineGameInvite(item).catch(showOnlineError)} onThemeToggle={() => setThemePreference(currentTheme === 'dark' ? 'light' : 'dark')} onNavigate={(destination) => { if (destination !== 'friends') setInviteRoomId(null); setPage(destination) }} overlay={overlay}><Suspense fallback={<RouteLoading/>}>{renderPage()}</Suspense></AppShell>
 }
 
 function RouteLoading() { const { t } = useLanguage(); return <section className="route-loading" aria-live="polite"><span/><strong>{t.app.loadingGame}</strong></section> }

@@ -5,7 +5,7 @@ import {
   loadOnlineMafiaPrivateView, loadOnlineMafiaSpeakerReactions, loadOnlineMafiaTeamMessages, loadOnlineRoom,
   loadOnlineSessionMessages, nextOnlineMafiaSpeaker, openOnlineMafiaNight, reactOnlineMafia, resolveOnlineMafiaVote,
   sendOnlineMafiaDayMessage, sendOnlineMafiaTeamMessage, setOnlineMafiaSpeaking, startOnlineMafia,
-  submitOnlineMafiaNightAction, subscribeToOnlineRoom, voteOnlineMafia, createOnlineRoom, joinOnlineRoom,
+  submitOnlineMafiaNightAction, subscribeToOnlineRoom, voteOnlineMafia, createOnlineMafiaRoom, joinOnlineRoom, type MafiaRoomSettings,
 } from '../lib/partyplay'
 import { supabase } from '../lib/supabase'
 
@@ -63,10 +63,10 @@ export function useOnlineMafia() {
     return () => { channelRef.current?.unsubscribe(); channelRef.current = null }
   }, [room?.room.id, refreshRoom])
 
-  const createRoom = useCallback(async (name: string, capacity: number) => {
+  const createRoom = useCallback(async (name: string, capacity: number, settings: MafiaRoomSettings) => {
     setPending(true); setError('')
     try {
-      const created = await createOnlineRoom({ gameType: 'mafia', name, capacity })
+      const created = await createOnlineMafiaRoom(name, capacity, settings)
       await refreshRoom(created.id)
       return created.id
     } catch (reason) {

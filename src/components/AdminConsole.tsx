@@ -23,7 +23,7 @@ type AdminConsoleProps = {
 type LaunchOption = { gameId: PartyGameId; gameType: PartyPlayGameType; capacities: number[] }
 
 const launchOptions: LaunchOption[] = [
-  { gameId: 'mafia', gameType: 'mafia', capacities: [5, 7, 9] },
+  { gameId: 'mafia', gameType: 'mafia', capacities: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   { gameId: 'tic-tac-toe', gameType: 'tic_tac_toe', capacities: [2] },
   { gameId: 'spyfall', gameType: 'spyfall', capacities: [3, 4, 5, 6, 7, 8] },
   { gameId: 'uno', gameType: 'uno', capacities: [2, 3, 4] },
