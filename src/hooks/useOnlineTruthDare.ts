@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   chooseOnlineTruthDare,
-  createOnlineRoom,
+  createOnlineTruthDareRoom,
   finishOnlineTruthDare,
   joinOnlineRoom,
   loadOnlineRoom,
   loadOnlineTruthDareMessages,
   nextOnlineTruthDareTurn,
+  passOnlineTruthDareTurn,
+  rateOnlineTruthDare,
+  loadOnlineTruthDareScoreboard,
   sendOnlineTruthDareMessage,
   startOnlineTruthDare,
   subscribeToOnlineRoom,
@@ -16,12 +19,15 @@ import {
   type PartyPlaySession,
   type TruthDareChoice,
   type TruthDareReaction,
+  type TruthDareRoomSettings,
+  type TruthDareScoreboardEntry,
 } from '../lib/partyplay'
 import { supabase } from '../lib/supabase'
 
 export function useOnlineTruthDare() {
   const [room, setRoom] = useState<LoadedRoom | null>(null)
   const [messages, setMessages] = useState<PartyPlayRoomMessage[]>([])
+  const [scoreboard, setScoreboard] = useState<TruthDareScoreboardEntry[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -36,8 +42,11 @@ export function useOnlineTruthDare() {
   const refreshRoom = useCallback(async (roomId: string) => {
     const next = await loadOnlineRoom(roomId)
     setRoom(next)
-    if (next.room.game_type === 'truth_or_dare' && next.session) setMessages(await loadOnlineTruthDareMessages(roomId, next.session.id))
-    else setMessages([])
+    if (next.room.game_type === 'truth_or_dare' && next.session) {
+      const [nextMessages, nextScores] = await Promise.all([loadOnlineTruthDareMessages(roomId, next.session.id), loadOnlineTruthDareScoreboard(next.session.id)])
+      setMessages(nextMessages)
+      setScoreboard(nextScores)
+    } else { setMessages([]); setScoreboard([]) }
     return next
   }, [])
 
@@ -48,10 +57,10 @@ export function useOnlineTruthDare() {
     return () => { if (channel && supabase) void supabase.removeChannel(channel) }
   }, [refreshRoom, room?.room.id])
 
-  const createRoom = useCallback(async (capacity: number) => {
+  const createRoom = useCallback(async (capacity: number, settings: TruthDareRoomSettings) => {
     setPending(true)
     try {
-      const created = await createOnlineRoom({ gameType: 'truth_or_dare', name: 'جرئت یا حقیقت دوستان', capacity })
+      const created = await createOnlineTruthDareRoom({ name: 'جرئت یا حقیقت دوستان', capacity, settings })
       return await refreshRoom(created.id)
     } finally { setPending(false) }
   }, [refreshRoom])
@@ -96,6 +105,22 @@ export function useOnlineTruthDare() {
     } finally { setPending(false) }
   }, [room?.session, setSession])
 
+  const pass = useCallback(async () => {
+    if (!room?.session) throw new Error('SESSION_NOT_FOUND')
+    setPending(true)
+    try { setSession(await passOnlineTruthDareTurn({ sessionId: room.session.id, expectedVersion: room.session.version })); return await refreshRoom(room.room.id) }
+    finally { setPending(false) }
+  }, [refreshRoom, room?.room.id, room?.session, setSession])
+
+  const rate = useCallback(async (roundNo: number, score: number) => {
+    if (!room?.session) throw new Error('SESSION_NOT_FOUND')
+    setPending(true)
+    try {
+      setSession(await rateOnlineTruthDare({ sessionId: room.session.id, roundNo, score }))
+      setScoreboard(await loadOnlineTruthDareScoreboard(room.session.id))
+    } finally { setPending(false) }
+  }, [room?.session, setSession])
+
   const finish = useCallback(async () => {
     if (!room?.session) throw new Error('SESSION_NOT_FOUND')
     setPending(true)
@@ -124,7 +149,7 @@ export function useOnlineTruthDare() {
   }, [refreshRoom, room])
 
   return {
-    room, messages, currentUserId, pending, createRoom, joinRoom, start, choose, nextTurn, finish,
-    sendMessage, toggleReaction, refreshRoom, clearRoom: () => { setRoom(null); setMessages([]) },
+    room, messages, scoreboard, currentUserId, pending, createRoom, joinRoom, start, choose, nextTurn, pass, rate, finish,
+    sendMessage, toggleReaction, refreshRoom, clearRoom: () => { setRoom(null); setMessages([]); setScoreboard([]) },
   }
 }

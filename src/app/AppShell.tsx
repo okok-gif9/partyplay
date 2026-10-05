@@ -15,7 +15,7 @@ type AppShellProps = {
   playerName: string
   playerAvatarSeed: string
   playerAvatarAssetPath?: string | null
-  playerPresence?: 'online' | 'away' | 'busy' | 'offline'
+  playerPresence?: 'online' | 'in_game' | 'away' | 'busy' | 'offline'
   playerPremiumRingEnabled?: boolean
   playerPremiumRingColor?: PremiumRingColor
   isAdmin?: boolean
@@ -24,6 +24,8 @@ type AppShellProps = {
   activityUnread?: number
   activityItems?: PartyPlayActivity[]
   onMarkAllActivityRead?: () => void
+  onAcceptGameInvite?: (item: PartyPlayActivity) => void
+  onDeclineGameInvite?: (item: PartyPlayActivity) => void
   children: ReactNode
   overlay?: ReactNode
 }
@@ -44,6 +46,8 @@ export default function AppShell({
   activityUnread = 0,
   activityItems = [],
   onMarkAllActivityRead = () => undefined,
+  onAcceptGameInvite,
+  onDeclineGameInvite,
   children,
   overlay,
 }: AppShellProps) {
@@ -81,7 +85,7 @@ export default function AppShell({
             <div className="breadcrumb"><span>{t.app.brand}</span><strong>{pageTitle}</strong></div>
             <div className="top-actions">
               <button className="language-toggle icon-button" onClick={() => setPreference(language === 'fa' ? 'en' : 'fa')} aria-label={t.app.language} title={t.app.language}><Globe2 size={18}/><span>{language === 'fa' ? 'FA' : 'EN'}</span></button>
-              <NotificationCenter open={notificationsOpen} onToggle={() => setNotificationsOpen((value) => !value)} items={activityItems} unreadCount={activityUnread} onOpenActivity={() => navigate('activity')} onMarkAllRead={onMarkAllActivityRead}/>
+              <NotificationCenter open={notificationsOpen} onToggle={() => setNotificationsOpen((value) => !value)} items={activityItems} unreadCount={activityUnread} onOpenActivity={() => navigate('activity')} onMarkAllRead={onMarkAllActivityRead} onAcceptInvite={onAcceptGameInvite} onDeclineInvite={onDeclineGameInvite}/>
               <button className="theme-toggle icon-button" onClick={onThemeToggle} aria-label={t.app.theme} title={t.app.theme}>{theme === 'dark' ? <Sun size={19}/> : <Moon size={19}/>}</button>
               <button className="top-avatar" onClick={() => navigate('profile')} aria-label={t.app.profile}><PlayerAvatar seed={playerAvatarSeed} assetPath={playerAvatarAssetPath} label={playerName} size="sm" status={playerPresence} premiumRingEnabled={playerPremiumRingEnabled} premiumRingColor={playerPremiumRingColor}/></button>
             </div>

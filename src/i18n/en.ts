@@ -39,7 +39,7 @@ export const en = {
     mafiaRoom: 'Create Mafia room',
     mafiaPill: 'HIDDEN ROLES · PRIVATE PLAY',
     mafiaTitle: 'Gather the town for Mafia.',
-    mafiaDescription: 'Start a private room for 5, 7, or 9 players. PartyPlay manages roles, turns, and the night-and-day flow.',
+    mafiaDescription: 'Start a private room for 5–15 players. PartyPlay manages roles, turns, and the night-and-day flow.',
     privateRooms: 'Private rooms',
     inviteHint: 'Invite your friends with one link',
     availableGames: 'READY TO PLAY',

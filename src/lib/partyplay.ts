@@ -9,6 +9,7 @@ export type TruthDareReaction = '😂' | '🔥' | '👏' | '😮'
 export type MafiaRole = 'godfather' | 'mafia' | 'doctor' | 'detective' | 'citizen'
 export type MafiaFaction = 'mafia' | 'city'
 export type MafiaPhase = 'role_reveal' | 'day_intro' | 'day_speaking' | 'voting' | 'night_intro' | 'mafia_action' | 'doctor_action' | 'detective_action' | 'morning_reveal' | 'finished'
+export type MafiaRoomSettings = { mafia_count: number; doctor_enabled: boolean; detective_enabled: boolean; day_seconds: number; voting_seconds: number; reveal_on_death: boolean }
 export type MafiaSpeakerMode = 'talking' | 'passed' | null
 export type MafiaReaction = 'up' | 'down' | 'challenge'
 
@@ -41,8 +42,18 @@ export type TruthDareState = {
   phase: 'choosing' | 'revealed' | 'finished'
   cycle_player_ids: string[]
   cycle_index: number
-  selected: null | { player_id: string; choice: TruthDareChoice; card_index: number }
+  selected: null | { player_id: string; choice: TruthDareChoice; card_index: number; prompt_id?: number; category?: TruthDareCategory; text_fa?: string; text_en?: string }
   chat_closes_at: string | null
+  enabled_categories?: TruthDareCategory[]
+  passes_used?: Record<string, number>
+}
+
+export type TruthDareCategory = 'fun' | 'friends' | 'extreme' | 'spicy'
+export type TruthDareRoomSettings = { categories: TruthDareCategory[]; strictFilter: boolean; customPrompts: string[] }
+export type TruthDareScoreboardEntry = { player_id: string; display_name: string; average_rating: number; rating_count: number; completed_turns: number; passes_used: number }
+export type SocialOverview = {
+  leaderboard: Array<{ rank: number; user_id: string; display_name: string; username: string; avatar_seed: string; completed_games: number; games_played: number }>
+  matches: Array<{ id: string; game_type: string; status: string; round_no: number; created_at: string; finished_at: string | null; players: string[] }>
 }
 
 export type MafiaState = {
@@ -195,7 +206,7 @@ export type ActiveRoomSummary = {
 
 export type PartyPlayActivity = {
   id: string
-  kind: 'friend_request' | 'friend_accepted' | 'group_added' | 'room_invite' | 'game_started' | 'your_turn' | 'game_finished' | 'achievement' | 'report_update' | 'security'
+  kind: 'friend_request' | 'friend_accepted' | 'group_added' | 'room_invite' | 'game_started' | 'your_turn' | 'game_finished' | 'achievement' | 'report_update' | 'security' | 'direct_message'
   title: string
   body: string
   payload: Record<string, unknown>
@@ -251,7 +262,9 @@ const roomErrorMessage = (code: string) => {
     ROOM_NOT_JOINABLE: 'این اتاق دیگر قابل ورود نیست.',
     ROOM_FULL: 'ظرفیت اتاق کامل شده است.',
     NEED_TWO_PLAYERS: 'برای شروع، دست‌کم دو بازیکن لازم است.',
-    NEED_EXACT_CAPACITY: 'اتاق مافیا فقط با ظرفیت کامل ۵، ۷ یا ۹ نفر شروع می‌شود.',
+    NEED_EXACT_CAPACITY: 'اتاق مافیا فقط با ظرفیت کامل ۵ تا ۱۵ نفر شروع می‌شود.',
+    INVALID_ROLE_SETTINGS: 'ترکیب نقش‌ها باید دست‌کم یک مافیا و یک شهروند داشته باشد.',
+    SPECTATOR_ONLY: 'بازیکن حذف‌شده فقط می‌تواند بازی را تماشا کند.',
     NOT_HOST: 'فقط میزبان می‌تواند این کار را انجام دهد.',
     NOT_A_MEMBER: 'اجازهٔ دسترسی به این اتاق را نداری.',
     NOT_YOUR_TURN: 'هنوز نوبت تو نیست.',
@@ -272,6 +285,13 @@ const roomErrorMessage = (code: string) => {
     INVALID_CHOICE: 'این انتخاب معتبر نیست.',
     CHOICE_ALREADY_MADE: 'کارت این دور انتخاب شده است.',
     CARD_NOT_REVEALED: 'ابتدا باید کارت این دور نمایش داده شود.',
+    UNSAFE_CUSTOM_PROMPT: 'این پرسش با فیلتر محتوای اتاق سازگار نیست یا قالب T:/D: ندارد.',
+    CUSTOM_PROMPT_LIMIT: 'حداکثر ۲۰ پرسش سفارشی برای هر اتاق مجاز است.',
+    NO_SAFE_PROMPTS: 'برای دسته‌های انتخاب‌شده پرسش امنی پیدا نشد.',
+    PASS_LIMIT_REACHED: 'سهمیهٔ ردکردن این بازی را استفاده کرده‌ای.',
+    INVALID_RATING: 'امتیاز باید بین ۱ تا ۵ باشد.',
+    ROUND_NOT_FOUND: 'دور موردنظر برای امتیازدهی پیدا نشد.',
+    CANNOT_RATE_SELF: 'نمی‌توانی نتیجهٔ خودت را امتیاز بدهی.',
     CHAT_LIMIT_REACHED: 'برای این دور، پیام خودت را فرستاده‌ای.',
     CHAT_CLOSED: 'زمان گفت‌وگوی این بازی تمام شده است.',
     INVALID_MESSAGE: 'پیام باید در طول مجاز باشد.',
@@ -307,9 +327,9 @@ const requireClient = () => {
 
 const knownErrorCodes = [
   'NOT_AUTHENTICATED', 'ROOM_NOT_FOUND', 'ROOM_NOT_JOINABLE', 'ROOM_FULL', 'NEED_TWO_PLAYERS', 'NEED_EXACT_CAPACITY',
-  'NOT_HOST', 'NOT_A_MEMBER', 'NOT_YOUR_TURN', 'NOT_SPEAKER', 'SPEAKER_WINDOW_CLOSED', 'SELF_VOTE', 'VOTING_NOT_OPEN',
+  'NOT_HOST', 'NOT_A_MEMBER', 'INVALID_ROLE_SETTINGS', 'SPECTATOR_ONLY', 'NOT_YOUR_TURN', 'NOT_SPEAKER', 'SPEAKER_WINDOW_CLOSED', 'SELF_VOTE', 'VOTING_NOT_OPEN',
   'NIGHT_ACTION_NOT_ALLOWED', 'PRIVATE_CHANNEL_FORBIDDEN', 'ROLE_NOT_READY', 'INVALID_GAME', 'INVALID_CAPACITY', 'INVALID_MOVE', 'CELL_OCCUPIED', 'CONFLICT',
-  'GAME_NOT_ACTIVE', 'SESSION_NOT_FOUND', 'INVALID_CHOICE', 'CHOICE_ALREADY_MADE', 'CARD_NOT_REVEALED', 'CHAT_LIMIT_REACHED',
+  'GAME_NOT_ACTIVE', 'SESSION_NOT_FOUND', 'INVALID_CHOICE', 'CHOICE_ALREADY_MADE', 'CARD_NOT_REVEALED', 'UNSAFE_CUSTOM_PROMPT', 'CUSTOM_PROMPT_LIMIT', 'NO_SAFE_PROMPTS', 'PASS_LIMIT_REACHED', 'INVALID_RATING', 'ROUND_NOT_FOUND', 'CANNOT_RATE_SELF', 'CHAT_LIMIT_REACHED',
   'CHAT_CLOSED', 'INVALID_MESSAGE', 'INVALID_REACTION', 'MESSAGE_NOT_FOUND', 'SUPABASE_NOT_CONFIGURED',
   'NOT_ADMIN', 'INVALID_QUERY', 'USER_NOT_FOUND', 'ROOM_NOT_CANCELLABLE',
   'ACCOUNT_RESTRICTED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_PENDING_DELETION', 'DELETE_CONFIRMATION_REQUIRED',
@@ -340,6 +360,15 @@ export async function createOnlineRoom(input: { gameType: PartyPlayGameType; nam
   return asRoom(data)
 }
 
+export async function createOnlineMafiaRoom(name: string, capacity: number, settings: MafiaRoomSettings) {
+  const client = requireClient()
+  const { error: profileError } = await client.rpc('partyplay_ensure_profile', { p_display_name: null })
+  throwIfError(profileError)
+  const { data, error } = await client.rpc('partyplay_create_mafia_room', { p_name: name, p_capacity: capacity, p_settings: settings })
+  throwIfError(error)
+  return asRoom(data)
+}
+
 export async function joinOnlineRoom(inviteCode: string) {
   const client = requireClient()
   const { data, error } = await client.rpc('partyplay_join_room', { p_invite_code: inviteCode })
@@ -357,8 +386,17 @@ const rpcSession = async (fn: string, args: Record<string, unknown>) => {
 export const startOnlineTicTacToe = (roomId: string) => rpcSession('partyplay_start_tic_tac_toe', { p_room_id: roomId })
 export const makeOnlineTicTacToeMove = (input: { sessionId: string; cell: number; expectedVersion: number }) => rpcSession('partyplay_tic_tac_toe_move', { p_session_id: input.sessionId, p_cell: input.cell, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 export const startOnlineTruthDare = (roomId: string) => rpcSession('partyplay_start_truth_dare', { p_room_id: roomId })
+export async function createOnlineTruthDareRoom(input: { name: string; capacity: number; settings: TruthDareRoomSettings }) {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_create_truth_dare_room', { p_name: input.name, p_capacity: input.capacity, p_settings: { categories: input.settings.categories, strict_filter: input.settings.strictFilter, custom_prompts: input.settings.customPrompts } })
+  throwIfError(error)
+  return asRoom(data)
+}
 export const chooseOnlineTruthDare = (input: { sessionId: string; choice: TruthDareChoice; expectedVersion: number }) => rpcSession('partyplay_truth_dare_choose', { p_session_id: input.sessionId, p_choice: input.choice, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 export const nextOnlineTruthDareTurn = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_truth_dare_next_turn', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
+export const passOnlineTruthDareTurn = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_truth_dare_pass', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
+export const rateOnlineTruthDare = (input: { sessionId: string; roundNo: number; score: number }) => rpcSession('partyplay_truth_dare_rate', { p_session_id: input.sessionId, p_round_no: input.roundNo, p_score: input.score })
+export async function loadOnlineTruthDareScoreboard(sessionId: string) { const client = requireClient(); const { data, error } = await client.rpc('partyplay_truth_dare_scoreboard', { p_session_id: sessionId }); throwIfError(error); return (data || []) as TruthDareScoreboardEntry[] }
 export const finishOnlineTruthDare = (input: { sessionId: string; expectedVersion: number }) => rpcSession('partyplay_finish_truth_dare', { p_session_id: input.sessionId, p_expected_version: input.expectedVersion, p_command_id: commandId() })
 
 export const startOnlineMafia = (roomId: string) => rpcSession('partyplay_start_mafia', { p_room_id: roomId })
@@ -468,6 +506,20 @@ export async function loadPlayerProgress(): Promise<PlayerProgress> {
     lastGameAt: value.last_game_at || null,
     achievements: (value.achievements || []).map((item) => ({ code: item.code, title: item.title, description: item.description, icon: item.icon, accent: item.accent, earnedAt: item.earned_at })),
   }
+}
+
+export async function loadSocialOverview(): Promise<SocialOverview> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_social_overview')
+  throwIfError(error)
+  return (data || { leaderboard: [], matches: [] }) as SocialOverview
+}
+
+export async function heartbeatPresence() {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_heartbeat_presence')
+  throwIfError(error)
+  return data as string | null
 }
 
 export async function markActivityRead(ids?: string[]) {
@@ -606,12 +658,106 @@ export function subscribeToOnlineRoom(roomId: string, onChange: () => void): Rea
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_mafia_speaker_reactions' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_game_private_state' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pp_game_command_log' }, onChange)
-    .subscribe()
+    .subscribe((status) => { if (status === 'SUBSCRIBED') onChange() })
 }
 
 export function onlineGameType(gameId: 'mafia' | 'tic-tac-toe' | 'truth-dare' | 'snakes'): PartyPlayGameType {
   const gameTypes: Record<typeof gameId, PartyPlayGameType> = { mafia: 'mafia', 'tic-tac-toe': 'tic_tac_toe', 'truth-dare': 'truth_or_dare', snakes: 'snakes_ladders' }
   return gameTypes[gameId]
+}
+
+export async function acceptPartyPlayInvite(inviteId: string) {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_accept_game_invite', { p_invite_id: inviteId })
+  throwIfError(error)
+  return data as { room_id: string; status: 'lobby' | 'playing'; session: unknown | null }
+}
+
+export async function declinePartyPlayInvite(inviteId: string) {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_decline_game_invite', { p_invite_id: inviteId })
+  throwIfError(error)
+  return data as { id: string; status: 'declined' }
+}
+
+export type LobbyChatMessage = { id: number; senderId: string; senderName: string; senderAvatar: string; body: string; createdAt: string }
+
+export async function loadLobbyMessages(roomId: string): Promise<LobbyChatMessage[]> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_lobby_list_messages', { p_room_id: roomId, p_limit: 60 })
+  throwIfError(error)
+  const rows = (data || []) as Array<{ id: number; sender_id: string; sender_name: string; sender_avatar: string; body: string; created_at: string }>
+  return rows.map((row) => ({ id: row.id, senderId: row.sender_id, senderName: row.sender_name, senderAvatar: row.sender_avatar, body: row.body, createdAt: row.created_at }))
+}
+
+export async function sendLobbyMessage(roomId: string, body: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_lobby_send_message', { p_room_id: roomId, p_body: body })
+  throwIfError(error)
+}
+
+export async function setLobbyReady(roomId: string, ready: boolean): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_lobby_set_ready', { p_room_id: roomId, p_ready: ready })
+  throwIfError(error)
+}
+
+export async function kickLobbyMember(roomId: string, userId: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_lobby_kick_member', { p_room_id: roomId, p_user_id: userId })
+  throwIfError(error)
+}
+
+export async function inviteFriendToLobby(roomId: string, friendId: string) {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_invite_friend_to_room', { p_room_id: roomId, p_friend_id: friendId })
+  throwIfError(error)
+  return data as { invite_id: string; room_id: string; status: string; created: boolean }
+}
+
+export type FriendPrivateMessage = { id: number; threadId: string; senderId: string; body: string; createdAt: string; readAt: string | null }
+
+export async function openFriendThread(friendId: string): Promise<{ id: string; friend_id: string; created_at: string }> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_open_friend_thread', { p_friend_id: friendId })
+  throwIfError(error)
+  return data as { id: string; friend_id: string; created_at: string }
+}
+
+export async function loadFriendMessages(threadId: string): Promise<FriendPrivateMessage[]> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_list_friend_messages', { p_thread_id: threadId, p_before: null, p_limit: 60 })
+  throwIfError(error)
+  const rows = (data || []) as Array<{ id: number; thread_id: string; sender_id: string; body: string; created_at: string; read_at: string | null }>
+  return rows.map((row) => ({ id: row.id, threadId: row.thread_id, senderId: row.sender_id, body: row.body, createdAt: row.created_at, readAt: row.read_at }))
+}
+
+export async function sendFriendMessage(threadId: string, body: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_send_friend_message', { p_thread_id: threadId, p_body: body })
+  throwIfError(error)
+}
+
+export async function markFriendMessagesRead(threadId: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_mark_friend_thread_read', { p_thread_id: threadId })
+  throwIfError(error)
+}
+
+export type PartyChatMessage = { id: number; senderId: string; senderName: string; body: string; createdAt: string }
+
+export async function loadPartyChat(roomId: string): Promise<PartyChatMessage[]> {
+  const client = requireClient()
+  const { data, error } = await client.rpc('partyplay_party_chat_list', { p_room_id: roomId, p_limit: 80 })
+  throwIfError(error)
+  const rows = (data || []) as Array<{ id: number; sender_id: string; sender_name: string; body: string; created_at: string }>
+  return rows.map((row) => ({ id: row.id, senderId: row.sender_id, senderName: row.sender_name, body: row.body, createdAt: row.created_at }))
+}
+
+export async function sendPartyChat(roomId: string, body: string): Promise<void> {
+  const client = requireClient()
+  const { error } = await client.rpc('partyplay_party_chat_send', { p_room_id: roomId, p_body: body })
+  throwIfError(error)
 }
 
 export type NotificationCategory = 'friend_request' | 'room_invite' | 'game_started' | 'your_turn' | 'achievement' | 'security'

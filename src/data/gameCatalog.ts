@@ -23,7 +23,7 @@ export type GameDefinition = {
 }
 
 export const gameCatalog: GameDefinition[] = [
-  { id: 'mafia', title: 'مافیا', subtitle: 'نقش بگیر، شک کن، رأی بده', players: '۵، ۷ یا ۹ نفر', duration: '۱۵ تا ۳۰ دقیقه', tone: 'نقش مخفی', icon: MoonStar, accent: 'pink', art: '☾', online: true, availability: 'published', source: 'Jezternz/PlayMafia (MIT)' },
+  { id: 'mafia', title: 'مافیا', subtitle: 'نقش بگیر، شک کن، رأی بده', players: '۵ تا ۱۵ نفر', duration: '۱۵ تا ۳۰ دقیقه', tone: 'نقش مخفی', icon: MoonStar, accent: 'pink', art: '☾', online: true, availability: 'published', source: 'Jezternz/PlayMafia (MIT)' },
   { id: 'spyfall', title: 'جاسوس', subtitle: 'مکان را کشف کن، بدون لو دادن خودت', players: '۳ تا ۸ نفر', duration: '۸ تا ۱۲ دقیقه', tone: 'نقش مخفی', icon: ShieldQuestion, accent: 'violet', art: '◉', online: false, availability: 'published', source: 'adrianocola/spyfall (MIT)' },
   { id: 'uno', title: 'اونو', subtitle: 'رنگ و عدد درست را سریع بازی کن', players: '۲ تا ۴ نفر', duration: '۶ تا ۱۵ دقیقه', tone: 'کارت و رقابت', icon: Club, accent: 'red', art: '♣', online: false, availability: 'published', source: 'christelbuchanan/UNO-Game (MIT)' },
   { id: 'backgammon', title: 'تخته‌نرد', subtitle: 'تاس بریز و مهره‌ها را خانه کن', players: '۲ نفر', duration: '۱۵ تا ۳۰ دقیقه', tone: 'کلاسیک و تاکتیکی', icon: Dices, accent: 'gold', art: '◈', online: false, availability: 'published', source: 'ifnowcode/gammon (MIT)' },
@@ -33,7 +33,7 @@ export const gameCatalog: GameDefinition[] = [
   { id: 'hokm', title: 'حکم با ربات', subtitle: 'کارت پخش کن، حکم را انتخاب کن و دست‌ها را ببر', players: '۱ بازیکن + ۳ ربات', duration: '۱۵ تا ۳۰ دقیقه', tone: 'ورق و تاکتیک', icon: Crown, accent: 'orange', art: '♠', online: false, availability: 'published', source: 'nxrix/joke (MIT)' },
   { id: 'freecell', title: 'فری‌سل کلاسیک', subtitle: 'کارت‌ها را با خانه‌های آزاد به بنیادها برسان', players: 'تک‌نفره', duration: '۵ تا ۲۰ دقیقه', tone: 'نوستالژی ویندوز', icon: Club, accent: 'violet', art: '♧', online: false, availability: 'published', source: 'gitbrent/FreecellJS (MIT)' },
   { id: 'pictionary', title: 'بکش و حدس بزن', subtitle: 'در جست‌وجوی اجرای کامل و آنلاین', players: '۳ تا ۸ نفر', duration: '۱۰ تا ۲۰ دقیقه', tone: 'در حال پژوهش', icon: BrushCleaning, accent: 'orange', art: '✎', online: false, availability: 'research' },
-  { id: 'truth-dare', title: 'جرئت یا حقیقت', subtitle: 'تا بازبینی کامل محتوا متوقف است', players: '۲ تا ۸ نفر', duration: 'آزاد', tone: 'محتوا در بازبینی', icon: Sparkles, accent: 'gold', art: '✺', online: true, availability: 'paused' },
+  { id: 'truth-dare', title: 'جرئت یا حقیقت', subtitle: 'دسته‌های امن، امتیازدهی و چالش گروهی', players: '۲ تا ۱۲ نفر', duration: 'آزاد', tone: 'اجتماعی و قابل تنظیم', icon: Sparkles, accent: 'gold', art: '✺', online: true, availability: 'published' },
   { id: 'connect-four', title: 'چهاردرردیف', subtitle: 'از آرکید پارتی پلی حذف شده است', players: '۲ نفر', duration: '۳ تا ۷ دقیقه', tone: 'حذف‌شده', icon: Columns3, accent: 'cyan', art: '●', online: false, availability: 'removed' },
 ]
 

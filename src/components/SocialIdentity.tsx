@@ -50,7 +50,7 @@ export type SiteRole = 'member' | 'site_admin'
 
 export type IdentityMeta = { isVerified?: boolean; membershipTier?: IdentityTier; siteRole?: SiteRole; tagline?: string }
 
-type PlayerAvatarProps = { seed?: string | null; assetPath?: string | null; label: string; size?: 'sm' | 'md' | 'lg' | 'xl'; status?: 'online' | 'away' | 'busy' | 'offline'; premiumRingEnabled?: boolean; premiumRingColor?: PremiumRingColor; className?: string }
+type PlayerAvatarProps = { seed?: string | null; assetPath?: string | null; label: string; size?: 'sm' | 'md' | 'lg' | 'xl'; status?: 'online' | 'in_game' | 'away' | 'busy' | 'offline'; premiumRingEnabled?: boolean; premiumRingColor?: PremiumRingColor; className?: string }
 
 export function PlayerAvatar({ seed = 'mint', assetPath, label, size = 'md', status, premiumRingEnabled = false, premiumRingColor = 'violet', className = '' }: PlayerAvatarProps) {
   const option = avatarOptions.find((candidate) => candidate.id === seed) || avatarOptions[0]
