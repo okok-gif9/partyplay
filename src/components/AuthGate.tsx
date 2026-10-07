@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, AtSign, CheckCircle2, Copy, Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, Mail, RefreshCw, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { useLanguage } from '../i18n'
 import { requireProductAccess, restoreAccountAfterSignIn } from '../lib/partyplay'
@@ -11,6 +11,10 @@ type AuthGateProps = {
   theme: 'light' | 'dark'
   children: ReactNode
 }
+
+type AuthGateContextValue = { isAuthenticated: boolean; authAvailable: boolean; openAuth: () => void }
+const AuthGateContext = createContext<AuthGateContextValue>({ isAuthenticated: false, authAvailable: false, openAuth: () => undefined })
+export const useAuthGate = () => useContext(AuthGateContext)
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernamePattern = /^[a-z0-9_]{3,24}$/
@@ -28,6 +32,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
   const fa = language === 'fa'
   const [isReady, setIsReady] = useState(!isSupabaseConfigured)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
   const [accessBlocked, setAccessBlocked] = useState('')
   const [stage, setStage] = useState<AuthStage>('sign-in')
   const [sentPurpose, setSentPurpose] = useState<SentPurpose>('signup')
@@ -56,7 +61,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
     resend: 'ارسال دوباره', changeEmail: 'تغییر ایمیل', openEmail: 'صندوق ایمیل را باز کن', openEmailDescription: 'اگر ایمیل را نمی‌بینی، پوشهٔ spam را هم بررسی کن.',
     resetLead: 'ایمیلت را وارد کن تا پیوند ساخت رمز تازه را بفرستیم.', resetButton: 'ارسال پیوند بازیابی', recoveryLead: 'برای این حساب یک رمز تازه بساز.', recoveryButton: 'ذخیرهٔ رمز تازه', recoveryDone: 'رمز تازه ذخیره شد؛ اکنون وارد حساب شده‌ای.',
     google: 'ادامه با Google', googleUnavailable: 'ورود Google پس از فعال‌سازی ارائه‌دهنده توسط مدیر پروژه نمایش داده می‌شود.',
-    blockedTitle: 'دسترسی این حساب محدود است', blockedDescription: 'وضعیت این حساب اجازهٔ استفاده از فضای بازی را نمی‌دهد. اگر فکر می‌کنی اشتباه شده، با مدیر PartyPlay در تماس باش.', signOut: 'خروج از این حساب',
+    blockedTitle: 'دسترسی این حساب محدود است', blockedDescription: 'وضعیت این حساب اجازهٔ استفاده از فضای بازی را نمی‌دهد. اگر فکر می‌کنی اشتباه شده، با مدیر PartyPlay در تماس باش.', signOut: 'خروج از این حساب', authUnavailable: 'ورود حساب در این نسخهٔ بازی تنظیم نشده است. می‌توانی به بازی برگردی و از بخش‌های عمومی استفاده کنی.',
     invalidPassword: 'رمز عبور را وارد کن.', passwordMismatch: 'دو رمز یکسان نیستند.', passwordShort: 'رمز باید دست‌کم ۸ نویسه باشد.', invalidUsername: 'آیدی باید ۳ تا ۲۴ نویسه و فقط شامل حروف انگلیسی، عدد یا _ باشد.', invalidName: 'نام را وارد کن.', duplicateUsername: 'این آیدی قبلاً گرفته شده است. یک آیدی دیگر انتخاب کن.', recoveryNotice: 'حساب در بازهٔ بازیابی دوباره فعال شد.', secureAccount: 'حساب امن PartyPlay',
   } : {
     signIn: 'Sign in', signUp: 'Create account', email: 'Email', password: 'Password', confirmPassword: 'Confirm password', name: 'Name', username: 'ID',
@@ -69,13 +74,14 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
     resend: 'Resend', changeEmail: 'Change email', openEmail: 'Open your inbox', openEmailDescription: 'If it is not there, check your spam folder too.',
     resetLead: 'Enter your email and we will send a password-reset link.', resetButton: 'Send reset link', recoveryLead: 'Choose a new password for this account.', recoveryButton: 'Save new password', recoveryDone: 'Your new password is saved and you are signed in.',
     google: 'Continue with Google', googleUnavailable: 'Google sign-in will appear after the provider is enabled by a project administrator.',
-    blockedTitle: 'This account has limited access', blockedDescription: 'This account cannot use the play space right now. Contact a PartyPlay administrator if you think this is a mistake.', signOut: 'Sign out',
+    blockedTitle: 'This account has limited access', blockedDescription: 'This account cannot use the play space right now. Contact a PartyPlay administrator if you think this is a mistake.', signOut: 'Sign out', authUnavailable: 'Account sign-in is not configured for this deployment. You can return to PartyPlay and continue browsing and playing in guest mode.',
     invalidPassword: 'Enter your password.', passwordMismatch: 'The two passwords do not match.', passwordShort: 'Password must be at least 8 characters.', invalidUsername: 'ID must be 3–24 characters using letters, numbers, or _.', invalidName: 'Enter your name.', duplicateUsername: 'This ID is already taken. Choose another one.', recoveryNotice: 'Your account was restored during the recovery window.', secureAccount: 'Secure PartyPlay account',
   }, [fa])
 
   const clearFeedback = () => { setError(''); setNotice('') }
   const resetForms = () => { setPassword(''); setPasswordConfirmation(''); setShowPassword(false); clearFeedback() }
   const setAuthStage = (next: AuthStage) => { setStage(next); resetForms() }
+  const openAuth = () => { setAuthStage('sign-in'); setAuthOpen(true); if (!isSupabaseConfigured) setError(copy.authUnavailable) }
 
   const authErrorMessage = useCallback((message: string) => {
     const normalized = message.toLowerCase()
@@ -99,6 +105,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
       if (recovered.state === 'active' && recovered.purge_after) setNotice(copy.recoveryNotice)
       await requireProductAccess()
       setAccessBlocked('')
+      setAuthOpen(false)
     } catch (cause) {
       setAccessBlocked(cause instanceof Error ? cause.message : copy.blockedDescription)
     } finally {
@@ -235,7 +242,7 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
     {mode !== 'sign-in' && <><label htmlFor={`auth-password-confirm-${mode}`}>{copy.confirmPassword}</label><div className="auth-input-wrap"><LockKeyhole size={18}/><input id={`auth-password-confirm-${mode}`} className="text-field" value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') mode === 'recovery' ? void saveRecoveredPassword() : void signUp() }} type={showPassword ? 'text' : 'password'} dir="ltr" autoComplete="new-password" /></div></>}
   </>
 
-  if (!isSupabaseConfigured || (isAuthenticated && !accessBlocked && stage !== 'recovery')) return <>{children}</>
+  if (!authOpen && !accessBlocked && stage !== 'recovery') return <AuthGateContext.Provider value={{ isAuthenticated, authAvailable: isSupabaseConfigured, openAuth }}>{children}</AuthGateContext.Provider>
 
   const sentMessage = sentPurpose === 'signup' ? copy.emailSentSignup : sentPurpose === 'reset' ? copy.emailSentReset : copy.emailSentMagic
 
@@ -244,8 +251,10 @@ export default function AuthGate({ theme, children }: AuthGateProps) {
       <div className="ambient ambient-one" /><div className="ambient ambient-two" />
       <section className="auth-panel auth-panel-pro" aria-labelledby="auth-title">
         <div className="auth-brand"><span className="brand-mark"><span>◈</span><i /><i /><i /><i /></span><span className="brand-text">{t.app.brand}</span></div>
+        {!accessBlocked && stage !== 'recovery' && <button className="auth-return-link" type="button" onClick={() => setAuthOpen(false)}><ArrowLeft size={15}/>{fa ? 'بازگشت به بازی' : 'Back to playing'}</button>}
         {!isReady ? <div className="auth-loading" role="status"><LoaderCircle size={26}/><p>{t.auth.checking}</p></div>
           : accessBlocked ? <div className="auth-form auth-blocked" role="alert"><span className="eyebrow"><ShieldCheck size={15}/>{copy.blockedTitle}</span><h1 id="auth-title">{copy.blockedTitle}</h1><p>{accessBlocked || copy.blockedDescription}</p><button className="secondary-button auth-submit" type="button" onClick={() => void signOut()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={18}/> : <ArrowLeft size={18}/>}{copy.signOut}</button></div>
+            : !isSupabaseConfigured ? <div className="auth-unavailable" role="status"><LockKeyhole size={25}/><h1 id="auth-title">{copy.signIn}</h1><p>{copy.authUnavailable}</p></div>
             : <>
               <span className="eyebrow"><ShieldCheck size={15}/>{copy.secureAccount}</span>
               <h1 id="auth-title">{stage === 'sign-up' ? copy.signUp : stage === 'reset' ? copy.resetButton : stage === 'recovery' ? copy.recoveryButton : stage === 'sent' ? copy.emailSentTitle : copy.signIn}</h1>
